@@ -52,7 +52,3 @@ The mobile application communicates with Firebase services using secure API call
   - Cloud Firestore
 - Data Visualization: React Native-compatible chart libraries
 - Version Control: Git and GitHub
-
-
-## Project Structure
-
