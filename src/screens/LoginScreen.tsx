@@ -27,7 +27,7 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>ClearPath 💰</Text>
+      <Text style={styles.title}>ClearPath</Text>
       <Text style={styles.subtitle}>Your financial journey starts here</Text>
 
       <TextInput
