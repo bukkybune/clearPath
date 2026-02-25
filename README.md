@@ -1,4 +1,4 @@
-# ClearPath 💰
+# ClearPath
 ### A Mobile Financial Decision Support Platform for College Students
 
 ClearPath is a mobile application designed to help college students manage their personal finances through budgeting tools, debt payoff simulation, and interactive financial education.
