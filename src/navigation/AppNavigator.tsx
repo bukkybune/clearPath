@@ -5,12 +5,13 @@ import HomeScreen from '../screens/HomeScreen';
 import BudgetScreen from '../screens/BudgetScreen';
 import DebtScreen from '../screens/DebtScreen';
 import LearnScreen from '../screens/LearnScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
 const icon = (label: string, focused: boolean) => {
   const icons: Record<string, string> = {
-    Home: '🏠', Budget: '💰', Debt: '📉', Learn: '📚',
+    Home: '🏠', Budget: '💰', Debt: '📉', Learn: '📚', Profile: '👤',
   };
   return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{icons[label]}</Text>;
 };
@@ -32,6 +33,7 @@ export default function AppNavigator() {
       <Tab.Screen name="Budget" component={BudgetScreen} />
       <Tab.Screen name="Debt" component={DebtScreen} />
       <Tab.Screen name="Learn" component={LearnScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
