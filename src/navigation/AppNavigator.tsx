@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
 import BudgetScreen from '../screens/BudgetScreen';
 import DebtScreen from '../screens/DebtScreen';
-import LearnScreen from '../screens/LearnScreen';
+import LearnNavigator from './LearnNavigator';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -24,7 +24,7 @@ const SCREENS: Record<string, React.ComponentType<any>> = {
   Home: HomeScreen,
   Budget: BudgetScreen,
   Debt: DebtScreen,
-  Learn: LearnScreen,
+  Learn: LearnNavigator,
   Profile: ProfileScreen,
 };
 
