@@ -4,6 +4,8 @@ import {
   StyleSheet, ScrollView, Dimensions
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 const W = Dimensions.get('window').width;
 
@@ -36,11 +38,12 @@ function calcPayoff(principal: number, annualRate: number, monthlyPayment: numbe
       chartData.push(Math.round(balance));
     }
   }
-
   return { months, totalInterest, totalPaid: principal + totalInterest, chartLabels, chartData };
 }
 
 export default function DebtScreen() {
+  const { colors } = useTheme();
+  const s = styles(colors);
   const [simType, setSimType] = useState<SimType>('student');
   const [principal, setPrincipal] = useState('');
   const [rate, setRate] = useState('');
@@ -60,111 +63,145 @@ export default function DebtScreen() {
     setResult(calcPayoff(p, r, m));
   };
 
+  const switchType = (type: SimType) => {
+    setSimType(type);
+    setResult(null);
+    setError('');
+    setRate(type === 'student' ? '5.5' : '20');
+  };
+
   const years = result ? Math.floor(result.months / 12) : 0;
   const months = result ? result.months % 12 : 0;
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Debt Payoff Simulator</Text>
+  const TIPS = {
+    student: [
+      'Even $50 extra/month can save thousands in interest.',
+      'Look into income-driven repayment plans if payments are too high.',
+      'Public Service Loan Forgiveness may apply if you work in public service.',
+    ],
+    credit: [
+      'Always pay more than the minimum to avoid debt traps.',
+      'Consider the avalanche method: pay highest interest rate first.',
+      'A balance transfer to a lower rate card could save money.',
+    ],
+  };
 
-      {/* Sim Type Toggle */}
-      <View style={styles.toggleRow}>
+  return (
+    <ScrollView style={s.container} contentContainerStyle={s.content}>
+
+      {/* Toggle */}
+      <View style={s.toggleRow}>
         <TouchableOpacity
-          style={[styles.toggleBtn, simType === 'student' && styles.toggleActive]}
-          onPress={() => { setSimType('student'); setResult(null); setRate('5.5'); }}
+          style={[s.toggleBtn, simType === 'student' && s.toggleActive]}
+          onPress={() => switchType('student')}
         >
-          <Text style={[styles.toggleText, simType === 'student' && styles.toggleTextActive]}>🎓 Student Loan</Text>
+          <Ionicons name="school-outline" size={16} color={simType === 'student' ? '#fff' : colors.textSecondary} />
+          <Text style={[s.toggleText, simType === 'student' && s.toggleTextActive]}>Student Loan</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.toggleBtn, simType === 'credit' && styles.toggleActive]}
-          onPress={() => { setSimType('credit'); setResult(null); setRate('20'); }}
+          style={[s.toggleBtn, simType === 'credit' && s.toggleActive]}
+          onPress={() => switchType('credit')}
         >
-          <Text style={[styles.toggleText, simType === 'credit' && styles.toggleTextActive]}>💳 Credit Card</Text>
+          <Ionicons name="card-outline" size={16} color={simType === 'credit' ? '#fff' : colors.textSecondary} />
+          <Text style={[s.toggleText, simType === 'credit' && s.toggleTextActive]}>Credit Card</Text>
         </TouchableOpacity>
       </View>
 
       {/* Inputs */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>
-          {simType === 'student' ? '🎓 Student Loan Details' : '💳 Credit Card Details'}
-        </Text>
-        <Text style={styles.label}>Loan Balance ($)</Text>
+      <View style={s.card}>
+        <Text style={s.cardTitle}>{simType === 'student' ? 'Student Loan Details' : 'Credit Card Details'}</Text>
+
+        <Text style={s.label}>Loan Balance ($)</Text>
         <TextInput
-          style={styles.input} placeholder={simType === 'student' ? 'e.g. 30000' : 'e.g. 5000'}
-          placeholderTextColor="#475569" value={principal} onChangeText={setPrincipal} keyboardType="numeric"
+          style={s.input}
+          placeholder={simType === 'student' ? 'e.g. 30000' : 'e.g. 5000'}
+          placeholderTextColor={colors.textTertiary}
+          value={principal} onChangeText={setPrincipal} keyboardType="numeric"
         />
-        <Text style={styles.label}>Annual Interest Rate (%)</Text>
+        <Text style={s.label}>Annual Interest Rate (%)</Text>
         <TextInput
-          style={styles.input} placeholder={simType === 'student' ? 'e.g. 5.5' : 'e.g. 20'}
-          placeholderTextColor="#475569" value={rate} onChangeText={setRate} keyboardType="numeric"
+          style={s.input}
+          placeholder={simType === 'student' ? 'e.g. 5.5' : 'e.g. 20'}
+          placeholderTextColor={colors.textTertiary}
+          value={rate} onChangeText={setRate} keyboardType="numeric"
         />
-        <Text style={styles.label}>Monthly Payment ($)</Text>
+        <Text style={s.label}>Monthly Payment ($)</Text>
         <TextInput
-          style={styles.input} placeholder="e.g. 300"
-          placeholderTextColor="#475569" value={payment} onChangeText={setPayment} keyboardType="numeric"
+          style={s.input} placeholder="e.g. 300"
+          placeholderTextColor={colors.textTertiary}
+          value={payment} onChangeText={setPayment} keyboardType="numeric"
         />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <TouchableOpacity style={styles.simBtn} onPress={simulate}>
-          <Text style={styles.simBtnText}>Calculate Payoff</Text>
+        {error ? (
+          <View style={s.errorBox}>
+            <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+        ) : null}
+        <TouchableOpacity style={s.calcBtn} onPress={simulate}>
+          <Text style={s.calcBtnText}>Calculate Payoff</Text>
         </TouchableOpacity>
       </View>
 
       {/* Results */}
       {result && (
         <>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>📊 Payoff Summary</Text>
-            <View style={styles.resultsGrid}>
-              <View style={styles.resultItem}>
-                <Text style={styles.resultLabel}>Payoff Time</Text>
-                <Text style={styles.resultValue}>{years}y {months}mo</Text>
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <Ionicons name="bar-chart-outline" size={18} color={colors.primary} />
+              <Text style={s.cardTitle}>Payoff Summary</Text>
+            </View>
+            <View style={s.resultsGrid}>
+              <View style={s.resultItem}>
+                <Text style={s.resultLabel}>Payoff Time</Text>
+                <Text style={[s.resultValue, { color: colors.primary }]}>{years}y {months}mo</Text>
               </View>
-              <View style={styles.resultItem}>
-                <Text style={styles.resultLabel}>Total Interest</Text>
-                <Text style={[styles.resultValue, { color: '#ef4444' }]}>${result.totalInterest.toFixed(2)}</Text>
+              <View style={s.resultDivider} />
+              <View style={s.resultItem}>
+                <Text style={s.resultLabel}>Total Interest</Text>
+                <Text style={[s.resultValue, { color: colors.danger }]}>${result.totalInterest.toFixed(2)}</Text>
               </View>
-              <View style={styles.resultItem}>
-                <Text style={styles.resultLabel}>Total Paid</Text>
-                <Text style={[styles.resultValue, { color: '#38bdf8' }]}>${result.totalPaid.toFixed(2)}</Text>
+              <View style={s.resultDivider} />
+              <View style={s.resultItem}>
+                <Text style={s.resultLabel}>Total Paid</Text>
+                <Text style={[s.resultValue, { color: colors.success }]}>${result.totalPaid.toFixed(2)}</Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>📉 Balance Over Time</Text>
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <Ionicons name="trending-down-outline" size={18} color={colors.primary} />
+              <Text style={s.cardTitle}>Balance Over Time</Text>
+            </View>
             <LineChart
               data={{ labels: result.chartLabels, datasets: [{ data: result.chartData }] }}
               width={W - 80}
               height={200}
               chartConfig={{
-                backgroundColor: '#1e293b',
-                backgroundGradientFrom: '#1e293b',
-                backgroundGradientTo: '#1e293b',
+                backgroundColor: colors.surface,
+                backgroundGradientFrom: colors.surface,
+                backgroundGradientTo: colors.surface,
                 decimalPlaces: 0,
-                color: (o = 1) => `rgba(56, 189, 248, ${o})`,
+                color: (o = 1) => `rgba(59, 130, 246, ${o})`,
                 labelColor: (o = 1) => `rgba(148, 163, 184, ${o})`,
-                propsForDots: { r: '4', strokeWidth: '2', stroke: '#38bdf8' },
+                propsForDots: { r: '4', strokeWidth: '2', stroke: colors.primary },
               }}
               bezier
               style={{ borderRadius: 8 }}
             />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>💡 Tips</Text>
-            {simType === 'student' ? (
-              <>
-                <Text style={styles.tip}>• Even $50 extra/month can save thousands in interest</Text>
-                <Text style={styles.tip}>• Consider income-driven repayment plans if payments are too high</Text>
-                <Text style={styles.tip}>• Look into loan forgiveness programs if you work in public service</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.tip}>• Always pay more than the minimum to avoid debt traps</Text>
-                <Text style={styles.tip}>• Consider the avalanche method: pay highest interest first</Text>
-                <Text style={styles.tip}>• A balance transfer to a lower rate card could save money</Text>
-              </>
-            )}
+          <View style={s.card}>
+            <View style={s.cardHeader}>
+              <Ionicons name="bulb-outline" size={18} color={colors.primary} />
+              <Text style={s.cardTitle}>Tips</Text>
+            </View>
+            {TIPS[simType].map((tip, i) => (
+              <View key={i} style={s.tipRow}>
+                <View style={s.tipDot} />
+                <Text style={s.tipText}>{tip}</Text>
+              </View>
+            ))}
           </View>
         </>
       )}
@@ -172,25 +209,29 @@ export default function DebtScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  content: { padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#f1f5f9', marginBottom: 16 },
-  toggleRow: { flexDirection: 'row', marginBottom: 16, gap: 10 },
-  toggleBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#334155', alignItems: 'center' },
-  toggleActive: { backgroundColor: '#38bdf8', borderColor: '#38bdf8' },
-  toggleText: { color: '#94a3b8', fontWeight: 'bold' },
-  toggleTextActive: { color: '#0f172a' },
-  card: { backgroundColor: '#1e293b', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155' },
-  cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#38bdf8', marginBottom: 12 },
-  label: { color: '#94a3b8', fontSize: 13, marginBottom: 6 },
-  input: { backgroundColor: '#0f172a', color: '#f1f5f9', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#334155' },
-  error: { color: '#ef4444', fontSize: 13, marginBottom: 10 },
-  simBtn: { backgroundColor: '#818cf8', borderRadius: 8, padding: 13, alignItems: 'center' },
-  simBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+const styles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 20 },
+  toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  toggleActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  toggleText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  toggleTextActive: { color: '#fff' },
+  card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 14 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  cardTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 12 },
+  label: { fontSize: 12, color: colors.textSecondary, marginBottom: 6 },
+  input: { backgroundColor: colors.surfaceSecondary, color: colors.textPrimary, borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 14 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dangerLight, padding: 10, borderRadius: 8, marginBottom: 10 },
+  errorText: { color: colors.danger, fontSize: 13, flex: 1 },
+  calcBtn: { backgroundColor: colors.primary, borderRadius: 8, padding: 13, alignItems: 'center' },
+  calcBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   resultsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
   resultItem: { alignItems: 'center', flex: 1 },
-  resultLabel: { color: '#94a3b8', fontSize: 12, marginBottom: 4 },
-  resultValue: { fontSize: 16, fontWeight: 'bold', color: '#34d399' },
-  tip: { color: '#94a3b8', fontSize: 13, lineHeight: 22 },
+  resultLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 4 },
+  resultValue: { fontSize: 16, fontWeight: '700' },
+  resultDivider: { width: 1, backgroundColor: colors.border },
+  tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+  tipDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginTop: 6 },
+  tipText: { color: colors.textSecondary, fontSize: 14, lineHeight: 22, flex: 1 },
 });

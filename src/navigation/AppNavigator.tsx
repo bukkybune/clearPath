@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
 import BudgetScreen from '../screens/BudgetScreen';
 import DebtScreen from '../screens/DebtScreen';
@@ -9,31 +10,67 @@ import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-const icon = (label: string, focused: boolean) => {
-  const icons: Record<string, string> = {
-    Home: '🏠', Budget: '💰', Debt: '📉', Learn: '📚', Profile: '👤',
-  };
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{icons[label]}</Text>;
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TABS: { name: string; icon: IoniconName; activeIcon: IoniconName }[] = [
+  { name: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'Budget', icon: 'wallet-outline', activeIcon: 'wallet' },
+  { name: 'Debt', icon: 'trending-down-outline', activeIcon: 'trending-down' },
+  { name: 'Learn', icon: 'book-outline', activeIcon: 'book' },
+  { name: 'Profile', icon: 'person-outline', activeIcon: 'person' },
+];
+
+const SCREENS: Record<string, React.ComponentType<any>> = {
+  Home: HomeScreen,
+  Budget: BudgetScreen,
+  Debt: DebtScreen,
+  Learn: LearnScreen,
+  Profile: ProfileScreen,
 };
 
 export default function AppNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused }) => icon(route.name, focused),
-        tabBarStyle: { backgroundColor: '#0f172a', borderTopColor: '#1e293b', height: 65, paddingBottom: 8 },
-        tabBarActiveTintColor: '#38bdf8',
-        tabBarInactiveTintColor: '#475569',
-        headerStyle: { backgroundColor: '#0f172a' },
-        headerTintColor: '#f1f5f9',
-        headerTitleStyle: { fontWeight: 'bold' },
-      })}
+      screenOptions={({ route }) => {
+        const tab = TABS.find(t => t.name === route.name)!;
+        return {
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? tab.activeIcon : tab.icon}
+              size={size}
+              color={color}
+            />
+          ),
+          tabBarStyle: {
+            backgroundColor: colors.tabBar,
+            borderTopColor: colors.tabBarBorder,
+            borderTopWidth: 1,
+            height: 65,
+            paddingBottom: 10,
+            paddingTop: 6,
+            elevation: 0,
+          },
+          tabBarBackground: () => null,
+          tabBarActiveTintColor: colors.tabActive,
+          tabBarInactiveTintColor: colors.tabInactive,
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: colors.background },
+        };
+      }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Budget" component={BudgetScreen} />
-      <Tab.Screen name="Debt" component={DebtScreen} />
-      <Tab.Screen name="Learn" component={LearnScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      {TABS.map(tab => (
+        <Tab.Screen
+          key={tab.name}
+          name={tab.name}
+          component={SCREENS[tab.name]}
+        />
+      ))}
     </Tab.Navigator>
   );
 }

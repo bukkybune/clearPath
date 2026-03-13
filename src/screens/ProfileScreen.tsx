@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, TextInput, Alert
+  TouchableOpacity, TextInput, Alert, Switch
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/firebaseConfig';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ProfileScreen() {
+  const { colors, themeMode, setThemeMode, isDark } = useTheme();
+  const s = styles(colors);
   const user = auth.currentUser;
   const [name, setName] = useState(user?.displayName || '');
   const [editing, setEditing] = useState(false);
@@ -54,123 +58,164 @@ export default function ProfileScreen() {
   const avatar = (name || user?.email || 'U')[0].toUpperCase();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Profile</Text>
+    <ScrollView style={s.container} contentContainerStyle={s.content}>
 
-      {/* Avatar */}
-      <View style={styles.avatarSection}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{avatar}</Text>
+      {/* Avatar + Name */}
+      <View style={s.avatarSection}>
+        <View style={s.avatar}>
+          <Text style={s.avatarText}>{avatar}</Text>
         </View>
         {editing ? (
-          <View style={styles.editRow}>
+          <View style={s.editRow}>
             <TextInput
-              style={styles.nameInput} value={name}
+              style={s.nameInput} value={name}
               onChangeText={setName} autoFocus
-              placeholderTextColor="#475569"
+              placeholderTextColor={colors.textTertiary}
             />
-            <TouchableOpacity style={styles.saveBtn} onPress={saveName} disabled={saving}>
-              <Text style={styles.saveBtnText}>{saving ? '...' : 'Save'}</Text>
+            <TouchableOpacity style={s.saveBtn} onPress={saveName} disabled={saving}>
+              <Text style={s.saveBtnText}>{saving ? '...' : 'Save'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditing(false)}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+            <TouchableOpacity onPress={() => setEditing(false)}>
+              <Text style={s.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.nameRow}>
-            <Text style={styles.userName}>{name || 'Student'}</Text>
-            <TouchableOpacity onPress={() => setEditing(true)}>
-              <Text style={styles.editBtn}>✏️ Edit</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={s.nameRow} onPress={() => setEditing(true)}>
+            <Text style={s.userName}>{name || 'Student'}</Text>
+            <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
         )}
-        <Text style={styles.userEmail}>{user?.email}</Text>
-        {joinDate ? <Text style={styles.joinDate}>Member since {joinDate}</Text> : null}
+        <Text style={s.userEmail}>{user?.email}</Text>
+        {joinDate ? <Text style={s.joinDate}>Member since {joinDate}</Text> : null}
       </View>
 
-      {/* Account Info */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>👤 Account Details</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{user?.email}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Account Type</Text>
-          <Text style={styles.infoValue}>Student</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Auth Provider</Text>
-          <Text style={styles.infoValue}>
-            {user?.providerData[0]?.providerId === 'google.com' ? 'Google' : 'Email & Password'}
-          </Text>
-        </View>
-      </View>
-
-      {/* App Info */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>📱 About ClearPath</Text>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Version</Text>
-          <Text style={styles.infoValue}>1.0.0</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Built for</Text>
-          <Text style={styles.infoValue}>College Students</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Features</Text>
-          <Text style={styles.infoValue}>Budget · Debt · Learn</Text>
+      {/* Account Details */}
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Account</Text>
+        <View style={s.card}>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Email</Text>
+            </View>
+            <Text style={s.rowValue} numberOfLines={1}>{user?.email}</Text>
+          </View>
+          <View style={[s.row, s.rowBorder]}>
+            <View style={s.rowLeft}>
+              <Ionicons name="person-outline" size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Account Type</Text>
+            </View>
+            <Text style={s.rowValue}>Student</Text>
+          </View>
+          <View style={[s.row, s.rowBorder]}>
+            <View style={s.rowLeft}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Auth Provider</Text>
+            </View>
+            <Text style={s.rowValue}>
+              {user?.providerData[0]?.providerId === 'google.com' ? 'Google' : 'Email & Password'}
+            </Text>
+          </View>
         </View>
       </View>
 
-      {/* Goals reminder */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>🎯 Your Financial Goals</Text>
-        <Text style={styles.goalText}>• Build an emergency fund</Text>
-        <Text style={styles.goalText}>• Pay off student loans efficiently</Text>
-        <Text style={styles.goalText}>• Start investing early</Text>
-        <Text style={styles.goalText}>• Maintain a good credit score</Text>
+      {/* Appearance */}
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Appearance</Text>
+        <View style={s.card}>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <Ionicons name={isDark ? 'moon-outline' : 'sunny-outline'} size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Dark Mode</Text>
+            </View>
+            <Switch
+              value={isDark}
+              onValueChange={(val) => setThemeMode(val ? 'dark' : 'light')}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+          <View style={[s.row, s.rowBorder]}>
+            <View style={s.rowLeft}>
+              <Ionicons name="phone-portrait-outline" size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Use System Theme</Text>
+            </View>
+            <Switch
+              value={themeMode === 'system'}
+              onValueChange={(val) => setThemeMode(val ? 'system' : isDark ? 'dark' : 'light')}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
       </View>
 
-      <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-        <Text style={styles.signOutText}>🚪 Sign Out</Text>
+      {/* About */}
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>About</Text>
+        <View style={s.card}>
+          <View style={s.row}>
+            <View style={s.rowLeft}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Version</Text>
+            </View>
+            <Text style={s.rowValue}>1.0.0</Text>
+          </View>
+          <View style={[s.row, s.rowBorder]}>
+            <View style={s.rowLeft}>
+              <Ionicons name="people-outline" size={18} color={colors.textSecondary} />
+              <Text style={s.rowLabel}>Built for</Text>
+            </View>
+            <Text style={s.rowValue}>College Students</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Sign Out */}
+      <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut}>
+        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        <Text style={s.signOutText}>Sign Out</Text>
       </TouchableOpacity>
+
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  content: { padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#f1f5f9', marginBottom: 24 },
-  avatarSection: { alignItems: 'center', marginBottom: 24 },
+const styles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { padding: 20, paddingBottom: 40 },
+  avatarSection: { alignItems: 'center', marginBottom: 28 },
   avatar: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: '#38bdf8', justifyContent: 'center',
+    backgroundColor: colors.primary, justifyContent: 'center',
     alignItems: 'center', marginBottom: 12
   },
-  avatarText: { fontSize: 32, fontWeight: 'bold', color: '#0f172a' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#f1f5f9' },
-  editBtn: { fontSize: 14, color: '#38bdf8' },
+  avatarText: { fontSize: 32, fontWeight: '700', color: '#fff' },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  userName: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
+  userEmail: { fontSize: 14, color: colors.textSecondary, marginBottom: 4 },
+  joinDate: { fontSize: 12, color: colors.textTertiary },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   nameInput: {
-    backgroundColor: '#1e293b', color: '#f1f5f9', borderRadius: 8,
-    padding: 8, borderWidth: 1, borderColor: '#38bdf8', minWidth: 150, fontSize: 16
+    backgroundColor: colors.surface, color: colors.textPrimary,
+    borderRadius: 8, padding: 8, borderWidth: 1,
+    borderColor: colors.primary, minWidth: 150, fontSize: 16
   },
-  saveBtn: { backgroundColor: '#38bdf8', borderRadius: 8, padding: 8, paddingHorizontal: 12 },
-  saveBtnText: { color: '#0f172a', fontWeight: 'bold' },
-  cancelBtn: { padding: 8 },
-  cancelBtnText: { color: '#94a3b8' },
-  userEmail: { color: '#94a3b8', fontSize: 14, marginBottom: 4 },
-  joinDate: { color: '#475569', fontSize: 12 },
-  card: { backgroundColor: '#1e293b', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#334155' },
-  cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#38bdf8', marginBottom: 12 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#334155' },
-  infoLabel: { color: '#94a3b8', fontSize: 14 },
-  infoValue: { color: '#f1f5f9', fontSize: 14, fontWeight: '500' },
-  goalText: { color: '#94a3b8', fontSize: 14, lineHeight: 26 },
-  signOutBtn: { backgroundColor: '#1e293b', borderRadius: 10, padding: 15, alignItems: 'center', borderWidth: 1, borderColor: '#ef4444', marginBottom: 30 },
-  signOutText: { color: '#ef4444', fontWeight: 'bold', fontSize: 15 },
+  saveBtn: { backgroundColor: colors.primary, borderRadius: 8, padding: 8, paddingHorizontal: 12 },
+  saveBtnText: { color: '#fff', fontWeight: '600' },
+  cancelText: { color: colors.textSecondary, fontSize: 14 },
+  section: { marginBottom: 20 },
+  sectionTitle: { fontSize: 12, fontWeight: '600', color: colors.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  card: { backgroundColor: colors.surface, borderRadius: 12, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rowLabel: { fontSize: 14, color: colors.textPrimary },
+  rowValue: { fontSize: 14, color: colors.textSecondary, maxWidth: 180, textAlign: 'right' },
+  signOutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, padding: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.danger
+  },
+  signOutText: { color: colors.danger, fontWeight: '600', fontSize: 15 },
 });
