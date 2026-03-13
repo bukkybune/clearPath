@@ -10,112 +10,145 @@ import { db, auth } from '../firebase/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
 
 const CATEGORIES = ['Food', 'Transport', 'Housing', 'Entertainment', 'Health', 'Other'];
+const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Financial Aid', 'Family Support', 'Side Hustle', 'Other'];
 const W = Dimensions.get('window').width;
 
-interface Expense { id: string; category: string; amount: number; description: string; }
+type Tab = 'expenses' | 'income';
+interface Transaction { id: string; category: string; amount: number; description: string; type: 'expense' | 'income'; }
 
 export default function BudgetScreen() {
   const { colors } = useTheme();
   const s = styles(colors);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>('expenses');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
-  const [budget, setBudget] = useState('');
   const [showForm, setShowForm] = useState(false);
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
     if (!uid) return;
-    const q = query(collection(db, 'expenses'), where('uid', '==', uid));
+    const q = query(collection(db, 'transactions'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
-      setExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() } as Expense)));
+      setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
     });
   }, [uid]);
 
-  const addExpense = async () => {
+  // Also listen to old expenses collection for backwards compatibility
+  const [oldExpenses, setOldExpenses] = useState<Transaction[]>([]);
+  useEffect(() => {
+    if (!uid) return;
+    const q = query(collection(db, 'expenses'), where('uid', '==', uid));
+    return onSnapshot(q, snap => {
+      setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' })));
+    });
+  }, [uid]);
+
+  const allExpenses = [
+    ...transactions.filter(t => t.type === 'expense'),
+    ...oldExpenses
+  ];
+  const allIncome = transactions.filter(t => t.type === 'income');
+
+  const totalExpenses = allExpenses.reduce((s, t) => s + t.amount, 0);
+  const totalIncome = allIncome.reduce((s, t) => s + t.amount, 0);
+  const balance = totalIncome - totalExpenses;
+
+  const currentCategories = activeTab === 'expenses' ? CATEGORIES : INCOME_CATEGORIES;
+
+  const addTransaction = async () => {
     if (!amount || isNaN(Number(amount))) {
       Alert.alert('Error', 'Please enter a valid amount'); return;
     }
     try {
-      await addDoc(collection(db, 'expenses'), {
+      await addDoc(collection(db, 'transactions'), {
         uid, category, amount: Number(amount),
-        description, createdAt: new Date().toISOString()
+        description, type: activeTab === 'expenses' ? 'expense' : 'income',
+        createdAt: new Date().toISOString()
       });
       setAmount(''); setDescription(''); setShowForm(false);
-    } catch (e) { Alert.alert('Error', 'Could not save expense'); }
+    } catch (e) { Alert.alert('Error', 'Could not save transaction'); }
   };
 
-  const deleteExpense = async (id: string) => {
-    Alert.alert('Delete', 'Remove this expense?', [
+  const deleteTransaction = async (id: string, isOld = false) => {
+    Alert.alert('Delete', 'Remove this transaction?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await deleteDoc(doc(db, 'expenses', id)); }
-        catch (e) { Alert.alert('Error', 'Could not delete expense'); }
+        try { await deleteDoc(doc(db, isOld ? 'expenses' : 'transactions', id)); }
+        catch (e) { Alert.alert('Error', 'Could not delete'); }
       }}
     ]);
   };
 
-  const total = expenses.reduce((s, e) => s + e.amount, 0);
-  const budgetNum = Number(budget) || 0;
-  const remaining = budgetNum - total;
-  const progress = budgetNum > 0 ? Math.min(total / budgetNum, 1) : 0;
-
   const chartData = CATEGORIES.map((cat, i) => ({
     name: cat,
-    amount: expenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
+    amount: allExpenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
     color: colors.chart[i],
     legendFontColor: colors.textSecondary,
     legendFontSize: 12,
   })).filter(d => d.amount > 0);
 
+  const displayList = activeTab === 'expenses' ? allExpenses : allIncome;
+  const displayCategories = activeTab === 'expenses' ? CATEGORIES : INCOME_CATEGORIES;
+
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
 
-      {/* Summary Card */}
-      <View style={s.summaryCard}>
-        <View style={s.summaryRow}>
-          <View>
-            <Text style={s.summaryLabel}>Total Spent</Text>
-            <Text style={s.summaryAmount}>${total.toFixed(2)}</Text>
-          </View>
-          <View style={s.summaryRight}>
-            <Text style={s.summaryLabel}>Remaining</Text>
-            <Text style={[s.summaryAmount, { color: remaining >= 0 ? colors.success : colors.danger }]}>
-              ${remaining.toFixed(2)}
-            </Text>
-          </View>
+      {/* Summary Cards */}
+      <View style={s.summaryRow}>
+        <View style={[s.summaryCard, { borderLeftColor: colors.success }]}>
+          <Text style={s.summaryLabel}>Income</Text>
+          <Text style={[s.summaryAmount, { color: colors.success }]}>${totalIncome.toFixed(2)}</Text>
         </View>
-
-        {/* Progress Bar */}
-        {budgetNum > 0 && (
-          <View style={s.progressSection}>
-            <View style={s.progressBg}>
-              <View style={[s.progressFill, {
-                width: `${progress * 100}%` as any,
-                backgroundColor: progress > 0.9 ? colors.danger : progress > 0.7 ? colors.warning : colors.success
-              }]} />
-            </View>
-            <Text style={s.progressLabel}>{Math.round(progress * 100)}% of budget used</Text>
-          </View>
-        )}
-
-        {/* Budget Input */}
-        <View style={s.budgetInputRow}>
-          <Ionicons name="calculator-outline" size={16} color={colors.textSecondary} />
-          <TextInput
-            style={s.budgetInput}
-            placeholder="Set monthly budget"
-            placeholderTextColor={colors.textTertiary}
-            value={budget}
-            onChangeText={setBudget}
-            keyboardType="numeric"
-          />
+        <View style={[s.summaryCard, { borderLeftColor: colors.danger }]}>
+          <Text style={s.summaryLabel}>Expenses</Text>
+          <Text style={[s.summaryAmount, { color: colors.danger }]}>${totalExpenses.toFixed(2)}</Text>
         </View>
       </View>
 
-      {/* Pie Chart */}
-      {chartData.length > 0 && (
+      {/* Balance Card */}
+      <View style={s.balanceCard}>
+        <Text style={s.balanceLabel}>Net Balance</Text>
+        <Text style={[s.balanceAmount, { color: balance >= 0 ? colors.success : colors.danger }]}>
+          {balance >= 0 ? '+' : ''}${balance.toFixed(2)}
+        </Text>
+        {totalIncome > 0 && (
+          <View style={s.progressSection}>
+            <View style={s.progressBg}>
+              <View style={[s.progressFill, {
+                width: `${Math.min((totalExpenses / totalIncome) * 100, 100)}%` as any,
+                backgroundColor: totalExpenses / totalIncome > 0.9 ? colors.danger :
+                  totalExpenses / totalIncome > 0.7 ? colors.warning : colors.success
+              }]} />
+            </View>
+            <Text style={s.progressLabel}>
+              {Math.round((totalExpenses / totalIncome) * 100)}% of income spent
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Tab Toggle */}
+      <View style={s.tabRow}>
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'expenses' && s.tabActive]}
+          onPress={() => { setActiveTab('expenses'); setCategory(CATEGORIES[0]); setShowForm(false); }}
+        >
+          <Ionicons name="arrow-up-circle-outline" size={16} color={activeTab === 'expenses' ? '#fff' : colors.textSecondary} />
+          <Text style={[s.tabText, activeTab === 'expenses' && s.tabTextActive]}>Expenses</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'income' && { ...s.tabActive, backgroundColor: colors.success }]}
+          onPress={() => { setActiveTab('income'); setCategory(INCOME_CATEGORIES[0]); setShowForm(false); }}
+        >
+          <Ionicons name="arrow-down-circle-outline" size={16} color={activeTab === 'income' ? '#fff' : colors.textSecondary} />
+          <Text style={[s.tabText, activeTab === 'income' && s.tabTextActive]}>Income</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Pie Chart (expenses only) */}
+      {activeTab === 'expenses' && chartData.length > 0 && (
         <View style={s.card}>
           <View style={s.cardHeader}>
             <Ionicons name="pie-chart-outline" size={18} color={colors.primary} />
@@ -134,22 +167,25 @@ export default function BudgetScreen() {
         </View>
       )}
 
-      {/* Add Expense Button */}
-      <TouchableOpacity style={s.addBtn} onPress={() => setShowForm(!showForm)}>
+      {/* Add Button */}
+      <TouchableOpacity
+        style={[s.addBtn, activeTab === 'income' && { backgroundColor: colors.success }]}
+        onPress={() => setShowForm(!showForm)}
+      >
         <Ionicons name={showForm ? 'close' : 'add'} size={20} color="#fff" />
-        <Text style={s.addBtnText}>{showForm ? 'Cancel' : 'Add Expense'}</Text>
+        <Text style={s.addBtnText}>{showForm ? 'Cancel' : `Add ${activeTab === 'expenses' ? 'Expense' : 'Income'}`}</Text>
       </TouchableOpacity>
 
-      {/* Add Expense Form */}
+      {/* Form */}
       {showForm && (
         <View style={s.card}>
-          <Text style={s.cardTitle}>New Expense</Text>
+          <Text style={s.cardTitle}>New {activeTab === 'expenses' ? 'Expense' : 'Income'}</Text>
           <Text style={s.label}>Category</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.catRow}>
-            {CATEGORIES.map((cat, i) => (
+            {currentCategories.map((cat, i) => (
               <TouchableOpacity
                 key={cat}
-                style={[s.catBtn, category === cat && { backgroundColor: colors.chart[i], borderColor: colors.chart[i] }]}
+                style={[s.catBtn, category === cat && { backgroundColor: colors.chart[i % colors.chart.length], borderColor: colors.chart[i % colors.chart.length] }]}
                 onPress={() => setCategory(cat)}
               >
                 <Text style={[s.catText, category === cat && { color: '#fff' }]}>{cat}</Text>
@@ -164,31 +200,36 @@ export default function BudgetScreen() {
             style={s.input} placeholder="Description (optional)" placeholderTextColor={colors.textTertiary}
             value={description} onChangeText={setDescription}
           />
-          <TouchableOpacity style={s.saveBtn} onPress={addExpense}>
-            <Text style={s.saveBtnText}>Save Expense</Text>
+          <TouchableOpacity
+            style={[s.saveBtn, activeTab === 'income' && { backgroundColor: colors.success }]}
+            onPress={addTransaction}
+          >
+            <Text style={s.saveBtnText}>Save {activeTab === 'expenses' ? 'Expense' : 'Income'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Expense List */}
-      {expenses.length > 0 && (
+      {/* Transaction List */}
+      {displayList.length > 0 && (
         <View style={s.card}>
           <View style={s.cardHeader}>
             <Ionicons name="list-outline" size={18} color={colors.primary} />
-            <Text style={s.cardTitle}>All Expenses</Text>
+            <Text style={s.cardTitle}>{activeTab === 'expenses' ? 'All Expenses' : 'All Income'}</Text>
           </View>
-          {expenses.map(e => (
-            <View key={e.id} style={s.expenseRow}>
-              <View style={s.expenseLeft}>
-                <View style={[s.expenseDot, { backgroundColor: colors.chart[CATEGORIES.indexOf(e.category)] }]} />
+          {displayList.map((t, i) => (
+            <View key={t.id} style={s.txRow}>
+              <View style={s.txLeft}>
+                <View style={[s.txDot, { backgroundColor: colors.chart[displayCategories.indexOf(t.category) % colors.chart.length] || colors.primary }]} />
                 <View>
-                  <Text style={s.expenseCat}>{e.category}</Text>
-                  {e.description ? <Text style={s.expenseDesc}>{e.description}</Text> : null}
+                  <Text style={s.txCat}>{t.category}</Text>
+                  {t.description ? <Text style={s.txDesc}>{t.description}</Text> : null}
                 </View>
               </View>
-              <View style={s.expenseRight}>
-                <Text style={s.expenseAmt}>${e.amount.toFixed(2)}</Text>
-                <TouchableOpacity onPress={() => deleteExpense(e.id)} style={s.deleteBtn}>
+              <View style={s.txRight}>
+                <Text style={[s.txAmt, { color: activeTab === 'income' ? colors.success : colors.danger }]}>
+                  {activeTab === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
+                </Text>
+                <TouchableOpacity onPress={() => deleteTransaction(t.id, oldExpenses.some(e => e.id === t.id))} style={s.deleteBtn}>
                   <Ionicons name="trash-outline" size={16} color={colors.danger} />
                 </TouchableOpacity>
               </View>
@@ -203,20 +244,25 @@ export default function BudgetScreen() {
 const styles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20 },
-  summaryCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 14 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  summaryRight: { alignItems: 'flex-end' },
+  summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  summaryCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, padding: 14, borderLeftWidth: 3 },
   summaryLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 4 },
-  summaryAmount: { fontSize: 24, fontWeight: '700', color: colors.textPrimary },
-  progressSection: { marginBottom: 16 },
-  progressBg: { height: 6, backgroundColor: colors.border, borderRadius: 3, marginBottom: 6 },
+  summaryAmount: { fontSize: 20, fontWeight: '700' },
+  balanceCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 14 },
+  balanceLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 4 },
+  balanceAmount: { fontSize: 28, fontWeight: '700', marginBottom: 12 },
+  progressSection: { gap: 6 },
+  progressBg: { height: 6, backgroundColor: colors.border, borderRadius: 3 },
   progressFill: { height: 6, borderRadius: 3 },
   progressLabel: { fontSize: 12, color: colors.textSecondary },
-  budgetInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 },
-  budgetInput: { flex: 1, color: colors.textPrimary, fontSize: 14 },
+  tabRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  tabTextActive: { color: '#fff' },
   card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  cardTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  cardTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary, marginBottom: 12 },
   label: { fontSize: 12, color: colors.textSecondary, marginBottom: 8 },
   catRow: { marginBottom: 14 },
   catBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: colors.border, marginRight: 8 },
@@ -224,14 +270,14 @@ const styles = (colors: any) => StyleSheet.create({
   input: { backgroundColor: colors.surfaceSecondary, color: colors.textPrimary, borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 14 },
   addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary, borderRadius: 10, padding: 14, marginBottom: 14 },
   addBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  saveBtn: { backgroundColor: colors.success, borderRadius: 8, padding: 13, alignItems: 'center' },
+  saveBtn: { backgroundColor: colors.primary, borderRadius: 8, padding: 13, alignItems: 'center', marginTop: 4 },
   saveBtnText: { color: '#fff', fontWeight: '600' },
-  expenseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
-  expenseLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  expenseDot: { width: 10, height: 10, borderRadius: 5 },
-  expenseCat: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  expenseDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  expenseRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  expenseAmt: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  txRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  txLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  txDot: { width: 10, height: 10, borderRadius: 5 },
+  txCat: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  txDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  txRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  txAmt: { fontSize: 14, fontWeight: '600' },
   deleteBtn: { padding: 4 },
 });
