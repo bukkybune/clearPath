@@ -9,7 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 export default function LessonScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const s = styles(colors);
-  const { topic, completed, setCompleted } = route.params;
+  const { topic, completed, onComplete } = route.params;
   const [showQuiz, setShowQuiz] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -30,7 +30,7 @@ export default function LessonScreen({ route, navigation }: any) {
     const correct = topic.quiz.filter((q: any, i: number) => answers[i] === q.answer).length;
     const passed = correct >= Math.ceil(topic.quiz.length * 0.67);
     if (passed && !isDone) {
-      setCompleted([...completed, topic.id]);
+      onComplete(topic.id);
     }
   };
 

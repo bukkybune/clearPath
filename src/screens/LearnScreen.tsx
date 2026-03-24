@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase/firebaseConfig';
 
 export const TOPICS = [
   {
@@ -361,7 +363,36 @@ Key Tips
 export default function LearnScreen({ navigation }: any) {
   const { colors } = useTheme();
   const s = styles(colors);
+  const uid = auth.currentUser?.uid;
   const [completed, setCompleted] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!uid) { setLoading(false); return; }
+    getDoc(doc(db, 'userProgress', uid))
+      .then(snap => {
+        if (snap.exists()) setCompleted(snap.data().completedLessons ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [uid]);
+
+  const markComplete = async (lessonId: string) => {
+    if (completed.includes(lessonId)) return;
+    const updated = [...completed, lessonId];
+    setCompleted(updated);
+    if (uid) {
+      await setDoc(doc(db, 'userProgress', uid), { completedLessons: updated }, { merge: true });
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -383,7 +414,7 @@ export default function LearnScreen({ navigation }: any) {
           <TouchableOpacity
             key={topic.id}
             style={[s.card, isDone && s.cardDone]}
-            onPress={() => navigation.navigate('Lesson', { topic, completed, setCompleted })}
+            onPress={() => navigation.navigate('Lesson', { topic, completed, onComplete: markComplete })}
             activeOpacity={0.7}
           >
             <View style={[s.iconBox, isDone && { backgroundColor: colors.successLight }]}>
