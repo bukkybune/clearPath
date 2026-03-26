@@ -438,6 +438,7 @@ export default function LearnScreen({ navigation }: any) {
           </TouchableOpacity>
         );
       })}
+
     </ScrollView>
   );
 }
