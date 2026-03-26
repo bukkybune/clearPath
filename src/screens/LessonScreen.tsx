@@ -135,6 +135,15 @@ export default function LessonScreen({ route, navigation }: any) {
                   <Text style={s.retryBtnText}>Try Again</Text>
                 </TouchableOpacity>
               )}
+              {passed && topic.id === '3' && (
+                <TouchableOpacity
+                  style={s.simBtn}
+                  onPress={() => navigation.getParent()?.navigate('Tools', { screen: 'InvestmentSimulator' })}
+                >
+                  <Ionicons name="trending-up-outline" size={16} color="#fff" />
+                  <Text style={s.simBtnText}>Try the Investment Simulator</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
                 <Text style={s.backBtnText}>Back to Lessons</Text>
               </TouchableOpacity>
@@ -172,4 +181,6 @@ const styles = (colors: any) => StyleSheet.create({
   retryBtnText: { color: '#fff', fontWeight: '600' },
   backBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, paddingHorizontal: 24 },
   backBtnText: { color: colors.textSecondary, fontWeight: '600' },
+  simBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary, borderRadius: 8, padding: 12, paddingHorizontal: 20, marginBottom: 10 },
+  simBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

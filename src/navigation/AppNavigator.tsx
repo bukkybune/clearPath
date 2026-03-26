@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import HomeScreen from '../screens/HomeScreen';
 import BudgetScreen from '../screens/BudgetScreen';
-import DebtScreen from '../screens/DebtScreen';
 import LearnNavigator from './LearnNavigator';
+import ToolsNavigator from './ToolsNavigator';
 import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -13,18 +13,18 @@ const Tab = createBottomTabNavigator();
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TABS: { name: string; icon: IoniconName; activeIcon: IoniconName }[] = [
-  { name: 'Home', icon: 'home-outline', activeIcon: 'home' },
-  { name: 'Budget', icon: 'wallet-outline', activeIcon: 'wallet' },
-  { name: 'Debt', icon: 'trending-down-outline', activeIcon: 'trending-down' },
-  { name: 'Learn', icon: 'book-outline', activeIcon: 'book' },
-  { name: 'Profile', icon: 'person-outline', activeIcon: 'person' },
+  { name: 'Home',    icon: 'home-outline',      activeIcon: 'home' },
+  { name: 'Budget',  icon: 'wallet-outline',    activeIcon: 'wallet' },
+  { name: 'Learn',   icon: 'book-outline',      activeIcon: 'book' },
+  { name: 'Tools',   icon: 'construct-outline', activeIcon: 'construct' },
+  { name: 'Profile', icon: 'person-outline',    activeIcon: 'person' },
 ];
 
 const SCREENS: Record<string, React.ComponentType<any>> = {
-  Home: HomeScreen,
-  Budget: BudgetScreen,
-  Debt: DebtScreen,
-  Learn: LearnNavigator,
+  Home:    HomeScreen,
+  Budget:  BudgetScreen,
+  Learn:   LearnNavigator,
+  Tools:   ToolsNavigator,
   Profile: ProfileScreen,
 };
 
@@ -37,11 +37,7 @@ export default function AppNavigator() {
         const tab = TABS.find(t => t.name === route.name)!;
         return {
           tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? tab.activeIcon : tab.icon}
-              size={size}
-              color={color}
-            />
+            <Ionicons name={focused ? tab.activeIcon : tab.icon} size={size} color={color} />
           ),
           tabBarStyle: {
             backgroundColor: colors.tabBar,
@@ -65,11 +61,7 @@ export default function AppNavigator() {
       }}
     >
       {TABS.map(tab => (
-        <Tab.Screen
-          key={tab.name}
-          name={tab.name}
-          component={SCREENS[tab.name]}
-        />
+        <Tab.Screen key={tab.name} name={tab.name} component={SCREENS[tab.name]} />
       ))}
     </Tab.Navigator>
   );
