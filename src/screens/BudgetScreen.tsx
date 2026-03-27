@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
+import { usePoints } from '../hooks/usePoints';
 
 const CATEGORIES = ['Food', 'Transport', 'Housing', 'Entertainment', 'Health', 'Other'];
 const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Financial Aid', 'Family Support', 'Side Hustle', 'Other'];
@@ -42,6 +43,7 @@ const currentYM = () => {
 export default function BudgetScreen() {
   const { colors } = useTheme();
   const s = styles(colors);
+  const { addPoints, awardMilestone, awardedMilestones } = usePoints();
   const uid = auth.currentUser?.uid;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -91,6 +93,24 @@ export default function BudgetScreen() {
     });
   }, [uid]);
 
+  // Award +50 pts once per month when expenses stay under the monthly budget
+  useEffect(() => {
+    if (!uid || monthlyBudget <= 0) return;
+    const thisMonth = currentYM();
+    const thisMonthExpenses = [...transactions.filter(t => t.type === 'expense'), ...oldExpenses]
+      .filter(t => getYearMonth(t.createdAt) === thisMonth);
+    const total = thisMonthExpenses.reduce((s, t) => s + t.amount, 0);
+    if (total >= monthlyBudget) return;
+
+    getDoc(doc(db, 'userProgress', uid)).then(snap => {
+      const lastBonus = snap.exists() ? snap.data().budgetBonusMonth : null;
+      if (lastBonus === thisMonth) return;
+      addPoints(50);
+      setDoc(doc(db, 'userProgress', uid), { budgetBonusMonth: thisMonth }, { merge: true })
+        .catch(e => console.error('Failed to save budget bonus month:', e));
+    });
+  }, [monthlyBudget, transactions.length, oldExpenses.length]);
+
   const allExpenses = [
     ...transactions.filter(t => t.type === 'expense'),
     ...oldExpenses,
@@ -137,6 +157,13 @@ export default function BudgetScreen() {
         description, type: activeTab === 'expenses' ? 'expense' : 'income',
         createdAt: new Date().toISOString(),
       });
+      const isFirst = transactions.length === 0 && oldExpenses.length === 0
+        && !awardedMilestones.includes('first_transaction');
+      if (isFirst) {
+        awardMilestone('first_transaction', 20);
+      } else {
+        addPoints(10);
+      }
       setAmount(''); setDescription(''); setShowForm(false);
     } catch (e) { Alert.alert('Error', 'Could not save transaction'); }
   };

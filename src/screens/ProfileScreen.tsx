@@ -8,10 +8,14 @@ import { signOut, updateProfile } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
+import { usePoints } from '../hooks/usePoints';
+import { getLevelInfo } from '../utils/levelUtils';
 
 export default function ProfileScreen() {
   const { colors, themeMode, setThemeMode, isDark } = useTheme();
   const s = styles(colors);
+  const { points, streak } = usePoints();
+  const levelInfo = getLevelInfo(points);
   const user = auth.currentUser;
   const [name, setName] = useState(user?.displayName || '');
   const [editing, setEditing] = useState(false);
@@ -87,6 +91,30 @@ export default function ProfileScreen() {
         )}
         <Text style={s.userEmail}>{user?.email}</Text>
         {joinDate ? <Text style={s.joinDate}>Member since {joinDate}</Text> : null}
+        <View style={s.statsRow}>
+          <View style={s.statBox}>
+            <Text style={s.statValue}>🔥 {streak}</Text>
+            <Text style={s.statLabel}>Day Streak</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statBox}>
+            <Text style={s.statValue}>⭐ {points}</Text>
+            <Text style={s.statLabel}>Total Points</Text>
+          </View>
+        </View>
+        <View style={s.levelCard}>
+          <View style={s.levelRow}>
+            <Text style={s.levelName}>{levelInfo.level}</Text>
+            {levelInfo.nextLevel ? (
+              <Text style={s.levelNext}>{levelInfo.pointsToNext} pts to {levelInfo.nextLevel}</Text>
+            ) : (
+              <Text style={s.levelNext}>Max level reached 🏆</Text>
+            )}
+          </View>
+          <View style={s.levelBarBg}>
+            <View style={[s.levelBarFill, { width: `${levelInfo.progress * 100}%` as any }]} />
+          </View>
+        </View>
       </View>
 
       {/* Account Details */}
@@ -194,7 +222,21 @@ const styles = (colors: any) => StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   userName: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
   userEmail: { fontSize: 14, color: colors.textSecondary, marginBottom: 4 },
-  joinDate: { fontSize: 12, color: colors.textTertiary },
+  joinDate: { fontSize: 12, color: colors.textTertiary, marginBottom: 16 },
+  statsRow: {
+    flexDirection: 'row', backgroundColor: colors.surface,
+    borderRadius: 14, overflow: 'hidden', width: '100%',
+  },
+  statBox: { flex: 1, alignItems: 'center', paddingVertical: 14 },
+  statValue: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  statLabel: { fontSize: 11, color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 0.4 },
+  statDivider: { width: 1, backgroundColor: colors.border },
+  levelCard: { width: '100%', marginTop: 12 },
+  levelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  levelName: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  levelNext: { fontSize: 11, color: colors.textTertiary },
+  levelBarBg: { height: 6, backgroundColor: colors.border, borderRadius: 3 },
+  levelBarFill: { height: 6, backgroundColor: colors.primary, borderRadius: 3 },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   nameInput: {
     backgroundColor: colors.surface, color: colors.textPrimary,

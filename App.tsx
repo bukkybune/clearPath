@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'react-native';
 import { auth } from './src/firebase/firebaseConfig';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { ProgressProvider } from './src/context/ProgressContext';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppNavigator from './src/navigation/AppNavigator';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -51,7 +52,7 @@ function RootNavigator() {
 
   return (
     <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
-      {user ? <AppNavigator /> : <AuthNavigator />}
+      {user ? <ProgressProvider><AppNavigator /></ProgressProvider> : <AuthNavigator />}
     </NavigationContainer>
   );
 }
