@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext, useContext, useState, useEffect,
+  useRef, useCallback, useMemo,
+} from 'react';
 import { doc, getDoc, setDoc, arrayUnion, increment } from 'firebase/firestore';
 import { db, auth } from '../firebase/firebaseConfig';
 
@@ -18,8 +21,12 @@ interface ProgressContextType {
 
 const ProgressContext = createContext<ProgressContextType | null>(null);
 
+// Uses local date components so the day reflects the user's timezone, not UTC.
 function dateStr(d: Date) {
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function ProgressProvider({ children }: { children: React.ReactNode }) {
@@ -30,6 +37,11 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const [streak, setStreak] = useState(0);
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const [awardedMilestones, setAwardedMilestones] = useState<string[]>([]);
+
+  // Ref mirrors awardedMilestones state so awardMilestone always reads the
+  // latest value even when called from a stale closure.
+  const awardedMilestonesRef = useRef<string[]>([]);
+
   const uid = auth.currentUser?.uid;
 
   useEffect(() => {
@@ -49,6 +61,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 
         const awarded: string[] = data.awardedMilestones ?? [];
         setAwardedMilestones(awarded);
+        awardedMilestonesRef.current = awarded;
 
         const last: string | null = data.lastActiveDate ?? null;
         let newStreak: number = data.streak ?? 0;
@@ -64,25 +77,25 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         setStreak(newStreak);
         setLastActiveDate(today);
 
-        // Build the Firestore update in one write
         const firestoreUpdate: Record<string, any> = {};
         if (last !== today) {
           firestoreUpdate.streak = newStreak;
           firestoreUpdate.lastActiveDate = today;
         }
 
-        // Streak-7 milestone — check at launch using Firestore data
-        let launchBonusPoints = data.points ?? 0;
+        // Streak-7 milestone — evaluated at launch against Firestore data
+        let launchPoints = data.points ?? 0;
         const newAwarded = [...awarded];
         if (newStreak >= 7 && !awarded.includes('streak_7')) {
-          launchBonusPoints += 50;
+          launchPoints += 50;
           newAwarded.push('streak_7');
           firestoreUpdate.awardedMilestones = arrayUnion('streak_7');
           firestoreUpdate.points = increment(50);
           setAwardedMilestones(newAwarded);
+          awardedMilestonesRef.current = newAwarded;
         }
 
-        setPoints(launchBonusPoints);
+        setPoints(launchPoints);
 
         if (Object.keys(firestoreUpdate).length > 0) {
           setDoc(doc(db, 'userProgress', uid), firestoreUpdate, { merge: true })
@@ -94,10 +107,14 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
       .catch(() => setLoading(false));
   }, [uid]);
 
-  const markComplete = async (lessonId: string) => {
-    if (completed.includes(lessonId)) return;
-    setCompleted(prev => [...prev, lessonId]);
-    if (uid) {
+  const markComplete = useCallback(async (lessonId: string) => {
+    let shouldPersist = false;
+    setCompleted(prev => {
+      if (prev.includes(lessonId)) return prev;
+      shouldPersist = true;
+      return [...prev, lessonId];
+    });
+    if (shouldPersist && uid) {
       try {
         await setDoc(
           doc(db, 'userProgress', uid),
@@ -108,12 +125,16 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to persist lesson completion:', e);
       }
     }
-  };
+  }, [uid]);
 
-  const markGuideRead = async (guideId: string) => {
-    if (readGuides.includes(guideId)) return;
-    setReadGuides(prev => [...prev, guideId]);
-    if (uid) {
+  const markGuideRead = useCallback(async (guideId: string) => {
+    let shouldPersist = false;
+    setReadGuides(prev => {
+      if (prev.includes(guideId)) return prev;
+      shouldPersist = true;
+      return [...prev, guideId];
+    });
+    if (shouldPersist && uid) {
       try {
         await setDoc(
           doc(db, 'userProgress', uid),
@@ -124,9 +145,9 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to persist guide read:', e);
       }
     }
-  };
+  }, [uid]);
 
-  const addPoints = async (amount: number) => {
+  const addPoints = useCallback(async (amount: number) => {
     setPoints(prev => prev + amount);
     if (uid) {
       try {
@@ -139,11 +160,17 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         console.error('Failed to add points:', e);
       }
     }
-  };
+  }, [uid]);
 
-  const awardMilestone = async (id: string, bonusPoints: number) => {
-    if (awardedMilestones.includes(id)) return;
-    setAwardedMilestones(prev => [...prev, id]);
+  const awardMilestone = useCallback(async (id: string, bonusPoints: number) => {
+    // Check ref first — always current regardless of closure age.
+    if (awardedMilestonesRef.current.includes(id)) return;
+    setAwardedMilestones(prev => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      awardedMilestonesRef.current = next;
+      return next;
+    });
     setPoints(prev => prev + bonusPoints);
     if (uid) {
       try {
@@ -156,15 +183,22 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         console.error(`Failed to award milestone ${id}:`, e);
       }
     }
-  };
+  }, [uid]);
+
+  const value = useMemo(() => ({
+    completed, readGuides, loading,
+    points, streak, lastActiveDate,
+    awardedMilestones,
+    markComplete, markGuideRead, addPoints, awardMilestone,
+  }), [
+    completed, readGuides, loading,
+    points, streak, lastActiveDate,
+    awardedMilestones,
+    markComplete, markGuideRead, addPoints, awardMilestone,
+  ]);
 
   return (
-    <ProgressContext.Provider value={{
-      completed, readGuides, loading,
-      points, streak, lastActiveDate,
-      awardedMilestones,
-      markComplete, markGuideRead, addPoints, awardMilestone,
-    }}>
+    <ProgressContext.Provider value={value}>
       {children}
     </ProgressContext.Provider>
   );

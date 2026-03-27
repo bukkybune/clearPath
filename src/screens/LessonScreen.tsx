@@ -80,7 +80,7 @@ export default function LessonScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const s = styles(colors);
 
-  const { completed, markComplete, markGuideRead } = useProgress();
+  const { completed, readGuides, markComplete, markGuideRead } = useProgress();
   const { addPoints, awardMilestone, awardedMilestones } = usePoints();
   const { topic, questionBank } = route.params;
   const isGuide: boolean = topic.type === 'guide';
@@ -147,10 +147,13 @@ export default function LessonScreen({ route, navigation }: any) {
     const correct = currentQuiz.filter((q, i) => answers[i] === q.answer).length;
     const didPass = correct >= Math.ceil(currentQuiz.length * 2 / 3);
     if (didPass && !isDone) {
+      // Compute count before markComplete mutates state to avoid stale closure.
+      const newCompletedCount = completed.includes(topic.id)
+        ? completed.length
+        : completed.length + 1;
       markComplete(topic.id);
       addPoints(100);
-      const allDone = completed.length + 1 === TOPICS.length;
-      if (allDone && !awardedMilestones.includes('all_lessons')) {
+      if (newCompletedCount === TOPICS.length && !awardedMilestones.includes('all_lessons')) {
         awardMilestone('all_lessons', 200);
         showToast('🎓 +200 pts · All lessons complete!');
       } else {
@@ -249,10 +252,15 @@ export default function LessonScreen({ route, navigation }: any) {
             {/* CTA */}
             {isGuide ? (
               <TouchableOpacity style={s.quizBtn} onPress={() => {
+                const alreadyRead = readGuides.includes(topic.id);
                 markGuideRead(topic.id);
-                addPoints(25);
-                showToast('+25 pts · Guide read!');
-                navTimerRef.current = setTimeout(() => navigation.goBack(), 1800);
+                if (!alreadyRead) {
+                  addPoints(25);
+                  showToast('+25 pts · Guide read!');
+                  navTimerRef.current = setTimeout(() => navigation.goBack(), 1800);
+                } else {
+                  navigation.goBack();
+                }
               }}>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
                 <Text style={s.quizBtnText}>Done Reading</Text>

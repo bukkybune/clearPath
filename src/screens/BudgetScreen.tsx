@@ -48,6 +48,8 @@ export default function BudgetScreen() {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [oldExpenses, setOldExpenses] = useState<Transaction[]>([]);
+  const [transactionsLoaded, setTransactionsLoaded] = useState(false);
+  const [oldExpensesLoaded, setOldExpensesLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('expenses');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [amount, setAmount] = useState('');
@@ -66,6 +68,7 @@ export default function BudgetScreen() {
     const q = query(collection(db, 'transactions'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
       setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
+      setTransactionsLoaded(true);
     });
   }, [uid]);
 
@@ -74,6 +77,7 @@ export default function BudgetScreen() {
     const q = query(collection(db, 'expenses'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
       setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' })));
+      setOldExpensesLoaded(true);
     });
   }, [uid]);
 
@@ -95,7 +99,7 @@ export default function BudgetScreen() {
 
   // Award +50 pts once per month when expenses stay under the monthly budget
   useEffect(() => {
-    if (!uid || monthlyBudget <= 0) return;
+    if (!uid || monthlyBudget <= 0 || !transactionsLoaded || !oldExpensesLoaded) return;
     const thisMonth = currentYM();
     const thisMonthExpenses = [...transactions.filter(t => t.type === 'expense'), ...oldExpenses]
       .filter(t => getYearMonth(t.createdAt) === thisMonth);
@@ -109,7 +113,7 @@ export default function BudgetScreen() {
       setDoc(doc(db, 'userProgress', uid), { budgetBonusMonth: thisMonth }, { merge: true })
         .catch(e => console.error('Failed to save budget bonus month:', e));
     });
-  }, [monthlyBudget, transactions.length, oldExpenses.length]);
+  }, [monthlyBudget, transactions.length, oldExpenses.length, transactionsLoaded, oldExpensesLoaded]);
 
   const allExpenses = [
     ...transactions.filter(t => t.type === 'expense'),
