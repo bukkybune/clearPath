@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
+import { ProgressProvider } from '../context/ProgressContext';
 import LearnScreen from '../screens/LearnScreen';
 import LessonScreen from '../screens/LessonScreen';
 
@@ -9,6 +10,7 @@ const Stack = createNativeStackNavigator();
 export default function LearnNavigator() {
   const { colors } = useTheme();
   return (
+    <ProgressProvider>
     <Stack.Navigator
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
@@ -21,5 +23,6 @@ export default function LearnNavigator() {
       <Stack.Screen name="LearnHome" component={LearnScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Lesson" component={LessonScreen} options={{ title: '' }} />
     </Stack.Navigator>
+    </ProgressProvider>
   );
 }
