@@ -92,7 +92,7 @@ export default function LessonScreen({ route, navigation }: any) {
   const score = submitted
     ? currentQuiz.filter((q, i) => answers[i] === q.answer).length
     : 0;
-  const passed = submitted && score >= Math.ceil(currentQuiz.length * 0.67);
+  const passed = submitted && score >= Math.ceil(currentQuiz.length * 2 / 3);
 
   // Celebration pop-in when quiz is passed
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function LessonScreen({ route, navigation }: any) {
     }
     setSubmitted(true);
     const correct = currentQuiz.filter((q, i) => answers[i] === q.answer).length;
-    const didPass = correct >= Math.ceil(currentQuiz.length * 0.67);
+    const didPass = correct >= Math.ceil(currentQuiz.length * 2 / 3);
     if (didPass && !isDone) onComplete(topic.id);
   };
 

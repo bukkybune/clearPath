@@ -473,7 +473,7 @@ Not emergencies: a sale on something you wanted, concert tickets, a holiday gift
 
 Where to Keep It
 
-A High-Yield Savings Account (HYSA) at an online bank is the right answer. Online banks like Marcus by Goldman Sachs, Ally, SoFi, and American Express High Yield Savings offer 4 to 5% APY — roughly 8 to 10 times the national average of around 0.5% at traditional banks. The money is FDIC insured, just as safe as any bank account, and accessible within 1 to 2 business days.
+A High-Yield Savings Account (HYSA) at an online bank is the right answer. Online banks like Marcus by Goldman Sachs, Ally, SoFi, and American Express High Yield Savings consistently offer rates well above what traditional banks pay — compare current APYs at bankrate.com or nerdwallet.com, as rates shift with the broader interest rate environment. The money is FDIC insured, just as safe as any bank account, and accessible within 1 to 2 business days.
 
 Three non-negotiable rules: Keep it completely separate from your checking account — proximity to money creates temptation to spend it. Do not invest it in stocks or any market-linked product — emergency funds must be available immediately, not subject to whether the market is up or down. Keep it liquid, not locked in a CD or retirement account where early withdrawal carries penalties.
 
@@ -957,13 +957,13 @@ Cash savings serve three distinct roles in a healthy financial life: your emerge
 
 Traditional Savings Account
 
-Offered by traditional brick-and-mortar banks and credit unions. FDIC insured up to $250,000 per depositor. These accounts are very safe but pay extremely low interest — the national average hovers around 0.4 to 0.5% APY. This is a fine place to start when you are opening your first account, but it is not where you want money sitting for any significant length of time.
+Offered by traditional brick-and-mortar banks and credit unions. FDIC insured up to $250,000 per depositor. These accounts are very safe but pay extremely low interest — typically well under 1% APY at most traditional banks. This is a fine place to start when you are opening your first account, but it is not where you want money sitting for any significant length of time.
 
 High-Yield Savings Account (HYSA)
 
-Offered primarily by online banks, which have no physical branches and therefore lower operating costs — savings they pass along to customers as higher interest rates. Current rates range from 4 to 5% APY, which is 8 to 10 times the national average. The money is just as safe (FDIC insured up to $250,000), just as accessible (funds available within 1 to 2 business days via transfer), and strictly better in every measurable way than a traditional savings account for an emergency fund or savings goal.
+Offered primarily by online banks, which have no physical branches and therefore lower operating costs — savings they pass along to customers as higher interest rates. Rates vary with the broader interest rate environment but are consistently and significantly higher than traditional banks — often many times more. The money is just as safe (FDIC insured up to $250,000), just as accessible (funds available within 1 to 2 business days via transfer), and strictly better in every measurable way than a traditional savings account for an emergency fund or savings goal.
 
-Well-regarded options include Ally Bank, Marcus by Goldman Sachs, SoFi, American Express High Yield Savings, and Discover Online Savings. Rates change over time, so compare current offerings at bankrate.com or nerdwallet.com.
+Well-regarded options include Ally Bank, Marcus by Goldman Sachs, SoFi, American Express High Yield Savings, and Discover Online Savings. Always compare current APYs at bankrate.com or nerdwallet.com before opening an account, as rates shift over time.
 
 Money Market Account
 
@@ -1073,9 +1073,9 @@ Net pay — also called take-home pay — is what actually arrives in your bank 
 
 Federal Income Tax
 
-The United States uses a progressive tax system, meaning you pay different rates on different portions of your income. For the 2024 tax year, the first $11,600 of taxable income is taxed at 10%. The next portion up to $47,150 is taxed at 12%. Higher income brackets face higher rates, reaching 37% only on earnings above $609,350.
+The United States uses a progressive tax system, meaning you pay different rates on different portions of your income. The bracket thresholds adjust each year for inflation — check irs.gov for the current year's figures. As a general pattern, the lowest bracket taxes income at 10%, with rates rising through 12%, 22%, 24%, and higher tiers for larger incomes, reaching 37% at the top.
 
-The critical concept here: your tax bracket refers to the rate applied to your highest dollar earned, not to all of your income. A student earning $30,000 does not pay 12% on all $30,000. They pay 10% on the first $11,600 and 12% on the remaining $18,400. Many people overestimate their tax burden because they confuse marginal rates with effective rates.
+The critical concept here: your tax bracket refers to the rate applied to your highest dollar earned, not to all of your income. A student earning $30,000 does not pay their marginal rate on the entire amount — they pay 10% on income that falls in the lowest bracket and the higher rate only on the portion above that threshold. Many people overestimate their tax burden because they confuse marginal rates with effective rates. See irs.gov for the exact thresholds for the current tax year.
 
 State Income Tax
 
@@ -1107,7 +1107,7 @@ Every paycheck comes with a pay stub detailing exactly what happened to your gro
 
 Filing Your Taxes as a Student
 
-Filing your taxes for the first time feels intimidating but is usually straightforward for students. The IRS Free File program at freefile.irs.gov allows anyone earning under $79,000 to file their federal return for free. Most states have similar programs.
+Filing your taxes for the first time feels intimidating but is usually straightforward for students. The IRS Free File program at freefile.irs.gov allows lower-income filers to file their federal return for free — check the current income eligibility threshold at irs.gov, as it adjusts over time. Most states have similar free filing programs.
 
 Key documents you will receive: a W-2 from your employer (summarizing all wages earned and taxes withheld for the year); a 1098-T if you paid tuition at a college or university (you may qualify for education tax credits worth hundreds or thousands of dollars); and 1099 forms for any freelance, gig economy, or investment income you received. Gather these documents and file by the April deadline each year. Understanding your first paycheck is the foundation for everything from negotiating job offers to planning your budget to making smart choices about benefits and retirement contributions throughout your career.`,
   },
