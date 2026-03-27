@@ -1,12 +1,12 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
-import LearnScreen from '../screens/LearnScreen';
-import LessonScreen from '../screens/LessonScreen';
+import HomeScreen from '../screens/HomeScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function LearnNavigator() {
+export default function HomeNavigator() {
   const { colors } = useTheme();
   return (
     <Stack.Navigator
@@ -18,8 +18,8 @@ export default function LearnNavigator() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="LearnHome" component={LearnScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Lesson" component={LessonScreen} options={{ title: '' }} />
+      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Stack.Navigator>
   );
 }

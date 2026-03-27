@@ -6,8 +6,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useProgress } from '../context/ProgressContext';
+import { usePoints } from '../hooks/usePoints';
 import { sampleQuestions } from '../utils/quizUtils';
 import type { Question } from '../utils/quizUtils';
+import { TOPICS } from '../data/lessons';
 
 // ── Content renderer ─────────────────────────────────────────────────────────
 // Parses the plain-text lesson content into styled sections (headers, body
@@ -78,7 +80,8 @@ export default function LessonScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const s = styles(colors);
 
-  const { completed, markComplete, markGuideRead } = useProgress();
+  const { completed, readGuides, markComplete, markGuideRead } = useProgress();
+  const { addPoints, awardMilestone, awardedMilestones } = usePoints();
   const { topic, questionBank } = route.params;
   const isGuide: boolean = topic.type === 'guide';
 
@@ -89,7 +92,22 @@ export default function LessonScreen({ route, navigation }: any) {
   const [scrollProgress, setScrollProgress] = useState(0);
 
   const celebAnim = useRef(new Animated.Value(0)).current;
+  const toastAnim = useRef(new Animated.Value(0)).current;
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const isDone: boolean = completed?.includes(topic.id) ?? false;
+
+  useEffect(() => () => { if (navTimerRef.current) clearTimeout(navTimerRef.current); }, []);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    toastAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.delay(1400),
+      Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => setToastMsg(null));
+  };
 
   const score = submitted
     ? currentQuiz.filter((q, i) => answers[i] === q.answer).length
@@ -128,7 +146,20 @@ export default function LessonScreen({ route, navigation }: any) {
     setSubmitted(true);
     const correct = currentQuiz.filter((q, i) => answers[i] === q.answer).length;
     const didPass = correct >= Math.ceil(currentQuiz.length * 2 / 3);
-    if (didPass && !isDone) markComplete(topic.id);
+    if (didPass && !isDone) {
+      // Compute count before markComplete mutates state to avoid stale closure.
+      const newCompletedCount = completed.includes(topic.id)
+        ? completed.length
+        : completed.length + 1;
+      markComplete(topic.id);
+      addPoints(100);
+      if (newCompletedCount === TOPICS.length && !awardedMilestones.includes('all_lessons')) {
+        awardMilestone('all_lessons', 200);
+        showToast('🎓 +200 pts · All lessons complete!');
+      } else {
+        showToast('+100 pts · Lesson complete!');
+      }
+    }
   };
 
   const retryQuiz = () => {
@@ -143,6 +174,17 @@ export default function LessonScreen({ route, navigation }: any) {
 
   return (
     <View style={s.container}>
+
+      {/* Points toast */}
+      {toastMsg && (
+        <Animated.View style={[s.toast, {
+          opacity: toastAnim,
+          transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-12, 0] }) }],
+        }]}>
+          <Ionicons name="star" size={14} color="#fff" />
+          <Text style={s.toastText}>{toastMsg}</Text>
+        </Animated.View>
+      )}
 
       {/* Progress bar — scroll % during reading, answered % during quiz, full when submitted */}
       <View style={s.progressBarBg}>
@@ -209,7 +251,17 @@ export default function LessonScreen({ route, navigation }: any) {
 
             {/* CTA */}
             {isGuide ? (
-              <TouchableOpacity style={s.quizBtn} onPress={() => { markGuideRead(topic.id); navigation.goBack(); }}>
+              <TouchableOpacity style={s.quizBtn} onPress={() => {
+                const alreadyRead = readGuides.includes(topic.id);
+                markGuideRead(topic.id);
+                if (!alreadyRead) {
+                  addPoints(25);
+                  showToast('+25 pts · Guide read!');
+                  navTimerRef.current = setTimeout(() => navigation.goBack(), 1800);
+                } else {
+                  navigation.goBack();
+                }
+              }}>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
                 <Text style={s.quizBtnText}>Done Reading</Text>
               </TouchableOpacity>
@@ -391,4 +443,13 @@ const styles = (colors: any) => StyleSheet.create({
     borderRadius: 8, padding: 12, paddingHorizontal: 24, width: '100%', alignItems: 'center',
   },
   backBtnText: { color: colors.textSecondary, fontWeight: '600' },
+
+  toast: {
+    position: 'absolute', top: 12, alignSelf: 'center', zIndex: 99,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.success, borderRadius: 20,
+    paddingVertical: 8, paddingHorizontal: 16,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+  },
+  toastText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 });

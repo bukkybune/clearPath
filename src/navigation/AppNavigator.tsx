@@ -2,30 +2,27 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import HomeScreen from '../screens/HomeScreen';
+import HomeNavigator from './HomeNavigator';
 import BudgetScreen from '../screens/BudgetScreen';
 import LearnNavigator from './LearnNavigator';
 import ToolsNavigator from './ToolsNavigator';
-import ProfileScreen from '../screens/ProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TABS: { name: string; icon: IoniconName; activeIcon: IoniconName }[] = [
-  { name: 'Home',    icon: 'home-outline',      activeIcon: 'home' },
-  { name: 'Budget',  icon: 'wallet-outline',    activeIcon: 'wallet' },
-  { name: 'Learn',   icon: 'book-outline',      activeIcon: 'book' },
-  { name: 'Tools',   icon: 'construct-outline', activeIcon: 'construct' },
-  { name: 'Profile', icon: 'person-outline',    activeIcon: 'person' },
+  { name: 'Home',   icon: 'home-outline',      activeIcon: 'home' },
+  { name: 'Budget', icon: 'wallet-outline',    activeIcon: 'wallet' },
+  { name: 'Learn',  icon: 'book-outline',      activeIcon: 'book' },
+  { name: 'Tools',  icon: 'construct-outline', activeIcon: 'construct' },
 ];
 
 const SCREENS: Record<string, React.ComponentType<any>> = {
-  Home:    HomeScreen,
-  Budget:  BudgetScreen,
-  Learn:   LearnNavigator,
-  Tools:   ToolsNavigator,
-  Profile: ProfileScreen,
+  Home:   HomeNavigator,
+  Budget: BudgetScreen,
+  Learn:  LearnNavigator,
+  Tools:  ToolsNavigator,
 };
 
 export default function AppNavigator() {
@@ -61,7 +58,12 @@ export default function AppNavigator() {
       }}
     >
       {TABS.map(tab => (
-        <Tab.Screen key={tab.name} name={tab.name} component={SCREENS[tab.name]} />
+        <Tab.Screen
+          key={tab.name}
+          name={tab.name}
+          component={SCREENS[tab.name]}
+          options={tab.name === 'Home' ? { headerShown: false } : undefined}
+        />
       ))}
     </Tab.Navigator>
   );
