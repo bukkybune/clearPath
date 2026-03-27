@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import { useProgress } from '../context/ProgressContext';
 import { sampleQuestions } from '../utils/quizUtils';
 import type { Question } from '../utils/quizUtils';
 
@@ -77,7 +78,8 @@ export default function LessonScreen({ route, navigation }: any) {
   const { colors } = useTheme();
   const s = styles(colors);
 
-  const { topic, questionBank, completed, onComplete, onRead } = route.params;
+  const { completed, markComplete, markGuideRead } = useProgress();
+  const { topic, questionBank } = route.params;
   const isGuide: boolean = topic.type === 'guide';
 
   const [showQuiz, setShowQuiz] = useState(false);
@@ -126,7 +128,7 @@ export default function LessonScreen({ route, navigation }: any) {
     setSubmitted(true);
     const correct = currentQuiz.filter((q, i) => answers[i] === q.answer).length;
     const didPass = correct >= Math.ceil(currentQuiz.length * 2 / 3);
-    if (didPass && !isDone) onComplete(topic.id);
+    if (didPass && !isDone) markComplete(topic.id);
   };
 
   const retryQuiz = () => {
@@ -207,7 +209,7 @@ export default function LessonScreen({ route, navigation }: any) {
 
             {/* CTA */}
             {isGuide ? (
-              <TouchableOpacity style={s.quizBtn} onPress={() => { onRead?.(topic.id); navigation.goBack(); }}>
+              <TouchableOpacity style={s.quizBtn} onPress={() => { markGuideRead(topic.id); navigation.goBack(); }}>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
                 <Text style={s.quizBtnText}>Done Reading</Text>
               </TouchableOpacity>

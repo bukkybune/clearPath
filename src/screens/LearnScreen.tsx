@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from '../firebase/firebaseConfig';
+import { useProgress } from '../context/ProgressContext';
 import { sampleQuestions } from '../utils/quizUtils';
 import { TOPICS, GUIDES, QUIZ_QUESTIONS_PER_ATTEMPT } from '../data/lessons';
 
@@ -16,41 +15,7 @@ export { TOPICS } from '../data/lessons';
 export default function LearnScreen({ navigation }: any) {
   const { colors } = useTheme();
   const s = styles(colors);
-  const uid = auth.currentUser?.uid;
-  const [completed, setCompleted] = useState<string[]>([]);
-  const [readGuides, setReadGuides] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!uid) { setLoading(false); return; }
-    getDoc(doc(db, 'userProgress', uid))
-      .then(snap => {
-        if (snap.exists()) {
-          setCompleted(snap.data().completedLessons ?? []);
-          setReadGuides(snap.data().readGuides ?? []);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [uid]);
-
-  const markComplete = async (lessonId: string) => {
-    if (completed.includes(lessonId)) return;
-    const updated = [...completed, lessonId];
-    setCompleted(updated);
-    if (uid) {
-      await setDoc(doc(db, 'userProgress', uid), { completedLessons: updated }, { merge: true });
-    }
-  };
-
-  const markGuideRead = async (guideId: string) => {
-    if (readGuides.includes(guideId)) return;
-    const updated = [...readGuides, guideId];
-    setReadGuides(updated);
-    if (uid) {
-      await setDoc(doc(db, 'userProgress', uid), { readGuides: updated }, { merge: true });
-    }
-  };
+  const { completed, readGuides, loading } = useProgress();
 
   const openLesson = (topic: typeof TOPICS[0], idx: number) => {
     const isLocked = idx > 0 && !completed.includes(TOPICS[idx - 1].id);
@@ -60,21 +25,11 @@ export default function LearnScreen({ navigation }: any) {
       ...topic,
       quiz: sampleQuestions(questionBank, QUIZ_QUESTIONS_PER_ATTEMPT),
     };
-    navigation.navigate('Lesson', {
-      topic: sampledTopic,
-      questionBank,
-      completed,
-      onComplete: markComplete,
-    });
+    navigation.navigate('Lesson', { topic: sampledTopic, questionBank });
   };
 
   const openGuide = (guide: typeof GUIDES[0]) => {
-    navigation.navigate('Lesson', {
-      topic: guide,
-      completed,
-      onComplete: markComplete,
-      onRead: markGuideRead,
-    });
+    navigation.navigate('Lesson', { topic: guide });
   };
 
   if (loading) {
