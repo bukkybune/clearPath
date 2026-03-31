@@ -39,7 +39,7 @@ const currentYM = () => {
 export default function BudgetScreen() {
   const { colors } = useTheme();
   const s = useMemo(() => styles(colors), [colors]);
-  const { addPoints, awardMilestone, awardedMilestones } = usePoints();
+  const { addPoints, awardMilestone, awardedMilestones, grantBudgetBonus } = usePoints();
   const { uid } = useAuth();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -116,8 +116,7 @@ export default function BudgetScreen() {
     if (total >= monthlyBudget) return;
 
     budgetBonusMonthRef.current = thisMonth;
-    addPoints(POINTS.BUDGET_BONUS);
-    setDoc(doc(db, 'userProgress', uid), { budgetBonusMonth: thisMonth }, { merge: true })
+    grantBudgetBonus(POINTS.BUDGET_BONUS, thisMonth)
       .catch(() => { budgetBonusMonthRef.current = null; }); // revert on failure
   }, [monthlyBudget, transactionsLoaded, oldExpensesLoaded]);
 
