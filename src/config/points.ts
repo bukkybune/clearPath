@@ -15,5 +15,5 @@ export const MILESTONE_IDS = {
 } as const;
 
 export const LESSON_IDS = {
-  PORTFOLIO: '3',
+  COMPOUND_INTEREST: '3',
 } as const;

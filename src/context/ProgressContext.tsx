@@ -19,6 +19,7 @@ interface ProgressContextType {
   markGuideRead: (guideId: string) => Promise<void>;
   addPoints: (amount: number) => Promise<void>;
   awardMilestone: (id: string, bonusPoints: number) => Promise<void>;
+  grantBudgetBonus: (amount: number, month: string) => Promise<void>;
 }
 
 const ProgressContext = createContext<ProgressContextType | null>(null);
@@ -171,6 +172,21 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     }
   }, [uid]);
 
+  const grantBudgetBonus = useCallback(async (amount: number, month: string) => {
+    setPoints(prev => prev + amount);
+    if (uid) {
+      try {
+        await setDoc(
+          doc(db, 'userProgress', uid),
+          { points: increment(amount), budgetBonusMonth: month },
+          { merge: true },
+        );
+      } catch {
+        showWriteError('budget bonus');
+      }
+    }
+  }, [uid]);
+
   const awardMilestone = useCallback(async (id: string, bonusPoints: number) => {
     // Check ref first — always current regardless of closure age.
     if (awardedMilestonesRef.current.includes(id)) return;
@@ -198,12 +214,12 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     completed, readGuides, loading,
     points, streak, lastActiveDate,
     awardedMilestones,
-    markComplete, markGuideRead, addPoints, awardMilestone,
+    markComplete, markGuideRead, addPoints, awardMilestone, grantBudgetBonus,
   }), [
     completed, readGuides, loading,
     points, streak, lastActiveDate,
     awardedMilestones,
-    markComplete, markGuideRead, addPoints, awardMilestone,
+    markComplete, markGuideRead, addPoints, awardMilestone, grantBudgetBonus,
   ]);
 
   return (

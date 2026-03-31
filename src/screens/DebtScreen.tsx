@@ -42,6 +42,7 @@ function calcPayoff(principal: number, annualRate: number, monthlyPayment: numbe
   const monthlyRate = annualRate / 100 / 12;
   let months = 0;
   let totalInterest = 0;
+  let amountPaidSoFar = 0;
   const chartData: number[] = [balance];
   const chartLabels: string[] = ['0'];
 
@@ -50,6 +51,7 @@ function calcPayoff(principal: number, annualRate: number, monthlyPayment: numbe
     totalInterest += interest;
     balance = balance + interest - monthlyPayment;
     if (balance < 0) balance = 0;
+    amountPaidSoFar += monthlyPayment;
     months++;
     if (months % 12 === 0 || balance === 0) {
       chartLabels.push(`${months}mo`);
@@ -57,13 +59,14 @@ function calcPayoff(principal: number, annualRate: number, monthlyPayment: numbe
     }
   }
 
+  const hitCeiling = months >= MAX_MONTHS && balance > 0;
   return {
     months,
     totalInterest,
-    totalPaid: principal + totalInterest,
+    totalPaid: hitCeiling ? amountPaidSoFar : principal + totalInterest,
     chartLabels,
     chartData,
-    hitCeiling: months >= MAX_MONTHS && balance > 0,
+    hitCeiling,
   };
 }
 
@@ -88,8 +91,8 @@ export default function DebtScreen() {
     if (isNaN(p) || p <= 0) {
       setError('Loan balance must be greater than zero'); return;
     }
-    if (isNaN(r) || r <= 0) {
-      setError('Interest rate must be greater than zero'); return;
+    if (isNaN(r) || r < 0) {
+      setError('Interest rate must be non-negative'); return;
     }
     if (isNaN(m) || m <= 0) {
       setError('Monthly payment must be greater than zero'); return;

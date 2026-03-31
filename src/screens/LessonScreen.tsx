@@ -349,7 +349,7 @@ export default function LessonScreen({ route, navigation }: Props) {
                 </Text>
 
                 {/* Navigate to Investment Simulator after completing the portfolio lesson */}
-                {passed && topic.id === LESSON_IDS.PORTFOLIO && (
+                {passed && topic.id === LESSON_IDS.COMPOUND_INTEREST && (
                   <TouchableOpacity
                     style={s.simBtn}
                     onPress={() => navigation.getParent()?.navigate('Tools', { screen: 'InvestmentSimulator' })}

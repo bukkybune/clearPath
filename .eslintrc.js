@@ -10,7 +10,6 @@ module.exports = {
   env: {
     browser: true,
     es2021: true,
-    'react-native/react-native': true,
   },
   rules: {
     // Catch stale closures and missing deps — the source of several bugs found in review.
