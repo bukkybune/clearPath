@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Alert, Dimensions
@@ -6,23 +6,19 @@ import {
 import { PieChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from '../firebase/firebaseConfig';
+import { db } from '../firebase/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
 import { usePoints } from '../hooks/usePoints';
+import { useAuth } from '../hooks/useAuth';
+import { POINTS, MILESTONE_IDS } from '../config/points';
+import type { AppColors } from '../theme/colors';
+import type { Transaction } from '../types';
 
 const CATEGORIES = ['Food', 'Transport', 'Housing', 'Entertainment', 'Health', 'Other'];
 const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Financial Aid', 'Family Support', 'Side Hustle', 'Other'];
 const W = Dimensions.get('window').width;
 
 type Tab = 'expenses' | 'income';
-interface Transaction {
-  id: string;
-  category: string;
-  amount: number;
-  description: string;
-  type: 'expense' | 'income';
-  createdAt?: string;
-}
 
 const getYearMonth = (iso?: string) => {
   if (!iso) return '';
@@ -42,9 +38,9 @@ const currentYM = () => {
 
 export default function BudgetScreen() {
   const { colors } = useTheme();
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
   const { addPoints, awardMilestone, awardedMilestones } = usePoints();
-  const uid = auth.currentUser?.uid;
+  const { uid } = useAuth();
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [oldExpenses, setOldExpenses] = useState<Transaction[]>([]);
@@ -63,6 +59,9 @@ export default function BudgetScreen() {
   const [budgetInput, setBudgetInput] = useState('');
   const [catLimitInputs, setCatLimitInputs] = useState<Record<string, string>>({});
 
+  // Track whether the budget bonus has been awarded this month, loaded once at mount.
+  const budgetBonusMonthRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!uid) return;
     const q = query(collection(db, 'transactions'), where('uid', '==', uid));
@@ -76,7 +75,7 @@ export default function BudgetScreen() {
     if (!uid) return;
     const q = query(collection(db, 'expenses'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
-      setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' })));
+      setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' as const })));
       setOldExpensesLoaded(true);
     });
   }, [uid]);
@@ -95,34 +94,47 @@ export default function BudgetScreen() {
       CATEGORIES.forEach(cat => { inputs[cat] = limits[cat] ? String(limits[cat]) : ''; });
       setCatLimitInputs(inputs);
     });
+
+    // Load budget bonus month once so we can check it without a Firestore read on every transaction add.
+    getDoc(doc(db, 'userProgress', uid)).then(snap => {
+      if (snap.exists()) {
+        budgetBonusMonthRef.current = snap.data().budgetBonusMonth ?? null;
+      }
+    });
   }, [uid]);
 
-  // Award +50 pts once per month when expenses stay under the monthly budget
+  // Award +50 pts once per month when expenses stay under the monthly budget.
+  // Depends only on stable values — avoids a Firestore read on every transaction change.
   useEffect(() => {
     if (!uid || monthlyBudget <= 0 || !transactionsLoaded || !oldExpensesLoaded) return;
     const thisMonth = currentYM();
+    if (budgetBonusMonthRef.current === thisMonth) return; // already awarded this month
+
     const thisMonthExpenses = [...transactions.filter(t => t.type === 'expense'), ...oldExpenses]
       .filter(t => getYearMonth(t.createdAt) === thisMonth);
     const total = thisMonthExpenses.reduce((s, t) => s + t.amount, 0);
     if (total >= monthlyBudget) return;
 
-    getDoc(doc(db, 'userProgress', uid)).then(snap => {
-      const lastBonus = snap.exists() ? snap.data().budgetBonusMonth : null;
-      if (lastBonus === thisMonth) return;
-      addPoints(50);
-      setDoc(doc(db, 'userProgress', uid), { budgetBonusMonth: thisMonth }, { merge: true })
-        .catch(e => console.error('Failed to save budget bonus month:', e));
-    });
-  }, [monthlyBudget, transactions.length, oldExpenses.length, transactionsLoaded, oldExpensesLoaded]);
+    budgetBonusMonthRef.current = thisMonth;
+    addPoints(POINTS.BUDGET_BONUS);
+    setDoc(doc(db, 'userProgress', uid), { budgetBonusMonth: thisMonth }, { merge: true })
+      .catch(() => { budgetBonusMonthRef.current = null; }); // revert on failure
+  }, [monthlyBudget, transactionsLoaded, oldExpensesLoaded]);
 
-  const allExpenses = [
-    ...transactions.filter(t => t.type === 'expense'),
-    ...oldExpenses,
-  ];
-  const allIncome = transactions.filter(t => t.type === 'income');
+  const allExpenses = useMemo(
+    () => [...transactions.filter(t => t.type === 'expense'), ...oldExpenses],
+    [transactions, oldExpenses],
+  );
+  const allIncome = useMemo(() => transactions.filter(t => t.type === 'income'), [transactions]);
 
-  const filteredExpenses = allExpenses.filter(t => getYearMonth(t.createdAt) === selectedMonth);
-  const filteredIncome = allIncome.filter(t => getYearMonth(t.createdAt) === selectedMonth);
+  const filteredExpenses = useMemo(
+    () => allExpenses.filter(t => getYearMonth(t.createdAt) === selectedMonth),
+    [allExpenses, selectedMonth],
+  );
+  const filteredIncome = useMemo(
+    () => allIncome.filter(t => getYearMonth(t.createdAt) === selectedMonth),
+    [allIncome, selectedMonth],
+  );
 
   const totalExpenses = filteredExpenses.reduce((s, t) => s + t.amount, 0);
   const totalIncome = filteredIncome.reduce((s, t) => s + t.amount, 0);
@@ -157,24 +169,30 @@ export default function BudgetScreen() {
   const doAddTransaction = async () => {
     try {
       await addDoc(collection(db, 'transactions'), {
-        uid, category, amount: Number(amount),
-        description, type: activeTab === 'expenses' ? 'expense' : 'income',
+        uid,
+        category,
+        amount: Number(amount),
+        description: description.trim().slice(0, 200),
+        type: activeTab === 'expenses' ? 'expense' : 'income',
         createdAt: new Date().toISOString(),
       });
       const isFirst = transactions.length === 0 && oldExpenses.length === 0
-        && !awardedMilestones.includes('first_transaction');
+        && !awardedMilestones.includes(MILESTONE_IDS.FIRST_TRANSACTION);
       if (isFirst) {
-        awardMilestone('first_transaction', 20);
+        awardMilestone(MILESTONE_IDS.FIRST_TRANSACTION, POINTS.MILESTONE_FIRST_TRANSACTION);
       } else {
-        addPoints(10);
+        addPoints(POINTS.TRANSACTION);
       }
       setAmount(''); setDescription(''); setShowForm(false);
-    } catch (e) { Alert.alert('Error', 'Could not save transaction'); }
+    } catch {
+      Alert.alert('Error', 'Could not save transaction');
+    }
   };
 
   const addTransaction = async () => {
-    if (!amount || isNaN(Number(amount))) {
-      Alert.alert('Error', 'Please enter a valid amount'); return;
+    const parsed = Number(amount);
+    if (!amount || isNaN(parsed) || parsed <= 0) {
+      Alert.alert('Error', 'Please enter an amount greater than zero'); return;
     }
     if (activeTab === 'expenses') {
       const limit = categoryLimits[category];
@@ -182,10 +200,10 @@ export default function BudgetScreen() {
         const catTotal = filteredExpenses
           .filter(e => e.category === category)
           .reduce((s, e) => s + e.amount, 0);
-        if (catTotal + Number(amount) > limit) {
+        if (catTotal + parsed > limit) {
           Alert.alert(
             'Category Limit Alert',
-            `Adding $${Number(amount).toFixed(2)} will exceed your ${category} limit of $${limit.toFixed(2)}.\nCurrent spend: $${catTotal.toFixed(2)}`,
+            `Adding $${parsed.toFixed(2)} will exceed your ${category} limit of $${limit.toFixed(2)}.\nCurrent spend: $${catTotal.toFixed(2)}`,
             [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Add Anyway', onPress: doAddTransaction },
@@ -203,7 +221,7 @@ export default function BudgetScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try { await deleteDoc(doc(db, isOld ? 'expenses' : 'transactions', id)); }
-        catch (e) { Alert.alert('Error', 'Could not delete'); }
+        catch { Alert.alert('Error', 'Could not delete'); }
       }},
     ]);
   };
@@ -295,7 +313,6 @@ export default function BudgetScreen() {
         <Ionicons name={showBudgetSettings ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
       </TouchableOpacity>
 
-      {/* Budget Settings Form */}
       {showBudgetSettings && (
         <View style={s.card}>
           <Text style={s.sectionTitle}>Budget Settings</Text>
@@ -433,7 +450,7 @@ export default function BudgetScreen() {
           />
           <TextInput
             style={s.input} placeholder="Description (optional)" placeholderTextColor={colors.textTertiary}
-            value={description} onChangeText={setDescription}
+            value={description} onChangeText={setDescription} maxLength={200}
           />
           <TouchableOpacity
             style={[s.saveBtn, activeTab === 'income' && { backgroundColor: colors.success }]}
@@ -476,7 +493,7 @@ export default function BudgetScreen() {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20 },
   monthRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16, gap: 16 },

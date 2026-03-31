@@ -1,12 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, onSnapshot, query, where, doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase/firebaseConfig';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../firebase/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
 import { usePoints } from '../hooks/usePoints';
+import { useProgress } from '../context/ProgressContext';
+import { useAuth } from '../hooks/useAuth';
 import { getLevelInfo } from '../utils/levelUtils';
-import { TOPICS } from './LearnScreen';
+import { TOPICS } from '../data/lessons'; // direct import — no screen dependency
+import type { AppColors } from '../theme/colors';
+import type { Transaction } from '../types';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { HomeStackParamList } from '../navigation/types';
 
 const TIPS = [
   "Try the 50/30/20 rule: 50% needs, 30% wants, 20% savings.",
@@ -19,27 +25,19 @@ const TIPS = [
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-interface Transaction {
-  id: string;
-  category: string;
-  amount: number;
-  description?: string;
-  createdAt?: string;
-  type?: 'expense' | 'income';
-}
+type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
-export default function HomeScreen({ navigation }: any) {
+export default function HomeScreen({ navigation }: Props) {
   const { colors } = useTheme();
-  const s = styles(colors);
-  const user = auth.currentUser;
-  const uid = user?.uid;
-
+  const s = useMemo(() => styles(colors), [colors]);
+  const { user, uid } = useAuth();
   const { points, streak, lastActiveDate } = usePoints();
+  const { completed } = useProgress();
   const levelInfo = getLevelInfo(points);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [oldExpenses, setOldExpenses] = useState<Transaction[]>([]);
-  const [nextLesson, setNextLesson] = useState<typeof TOPICS[0] | null | undefined>(undefined);
-  const [tip] = useState(TIPS[Math.floor(Math.random() * TIPS.length)]);
+  const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
 
   useEffect(() => {
     if (!uid) return;
@@ -53,19 +51,18 @@ export default function HomeScreen({ navigation }: any) {
     if (!uid) return;
     const q = query(collection(db, 'expenses'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
-      setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' })));
+      setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' as const })));
     });
   }, [uid]);
 
-  useEffect(() => {
-    if (!uid) return;
-    getDoc(doc(db, 'userProgress', uid)).then(snap => {
-      const completed: string[] = snap.exists() ? (snap.data().completedLessons ?? []) : [];
-      setNextLesson(TOPICS.find(t => !completed.includes(t.id)) ?? null);
-    });
-  }, [uid]);
+  // Derive next lesson directly from ProgressContext — no extra Firestore read needed.
+  const nextLesson = useMemo(
+    () => TOPICS.find(t => !completed.includes(t.id)) ?? null,
+    [completed],
+  );
 
   const now = new Date();
+
   const filterThisMonth = (items: Transaction[]) =>
     items.filter(t => {
       if (!t.createdAt) return false;
@@ -73,8 +70,14 @@ export default function HomeScreen({ navigation }: any) {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
 
-  const allExpenses = [...transactions.filter(t => t.type === 'expense'), ...oldExpenses];
-  const allIncome = transactions.filter(t => t.type === 'income');
+  const allExpenses = useMemo(
+    () => [...transactions.filter(t => t.type === 'expense'), ...oldExpenses],
+    [transactions, oldExpenses],
+  );
+  const allIncome = useMemo(
+    () => transactions.filter(t => t.type === 'income'),
+    [transactions],
+  );
 
   const monthlyExpenses = filterThisMonth(allExpenses);
   const monthlyIncome = filterThisMonth(allIncome);
@@ -84,26 +87,31 @@ export default function HomeScreen({ navigation }: any) {
   const netBalance = totalIncome - totalExpenses;
   const inTheGreen = netBalance >= 0;
 
-  const recentExpenses = [...monthlyExpenses]
-    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
-    .slice(0, 3);
+  const recentExpenses = useMemo(
+    () =>
+      [...monthlyExpenses]
+        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+        .slice(0, 3),
+    [monthlyExpenses],
+  );
 
-  // Fixed Su→Sa week: determine which days of the current week are active
-  const streakDots = Array.from({ length: 7 }, (_, dow) => {
-    // dow: 0=Sun … 6=Sat
+  // Memoised: only recomputes when streak or lastActiveDate changes.
+  const streakDots = useMemo(() => {
     const sunday = new Date(now);
-    sunday.setDate(now.getDate() - now.getDay()); // start of this week (Sunday)
+    sunday.setDate(now.getDate() - now.getDay());
     sunday.setHours(0, 0, 0, 0);
-    const cellDate = new Date(sunday);
-    cellDate.setDate(sunday.getDate() + dow);
-    if (cellDate > now) return false; // future days are always empty
-    if (!lastActiveDate) return false;
-    const last = new Date(lastActiveDate + 'T00:00:00');
-    const diffDays = Math.round((last.getTime() - cellDate.getTime()) / 86400000);
-    return diffDays >= 0 && diffDays < streak;
-  });
 
-  // Streak label
+    return Array.from({ length: 7 }, (_, dow) => {
+      const cellDate = new Date(sunday);
+      cellDate.setDate(sunday.getDate() + dow);
+      if (cellDate > now) return false;
+      if (!lastActiveDate) return false;
+      const last = new Date(lastActiveDate + 'T00:00:00');
+      const diffDays = Math.round((last.getTime() - cellDate.getTime()) / 86400000);
+      return diffDays >= 0 && diffDays < streak;
+    });
+  }, [streak, lastActiveDate]);
+
   const streakLabel =
     streak === 0 ? 'Start your streak today!' :
     streak === 1 ? "You're on a roll, keep going!" :
@@ -113,9 +121,9 @@ export default function HomeScreen({ navigation }: any) {
   const avatar = ((user?.displayName || user?.email || 'S')[0]).toUpperCase();
 
   const QUICK_ACTIONS = [
-    { icon: 'wallet-outline' as const,      label: 'Track your spending',       sub: 'Budget', tab: 'Budget' },
-    { icon: 'trending-up-outline' as const, label: 'Simulate investment growth', sub: 'Tools',  tab: 'Tools'  },
-    { icon: 'book-outline' as const,        label: 'Learn finance basics',       sub: 'Learn',  tab: 'Learn'  },
+    { icon: 'wallet-outline' as const,      label: 'Track your spending',       sub: 'Budget', tab: 'Budget' as const },
+    { icon: 'trending-up-outline' as const, label: 'Simulate investment growth', sub: 'Tools',  tab: 'Tools' as const  },
+    { icon: 'book-outline' as const,        label: 'Learn finance basics',       sub: 'Learn',  tab: 'Learn' as const  },
   ];
 
   return (
@@ -204,7 +212,7 @@ export default function HomeScreen({ navigation }: any) {
       {nextLesson != null && (
         <TouchableOpacity
           style={s.learnCard}
-          onPress={() => navigation.navigate('Learn')}
+          onPress={() => navigation.navigate('Learn' as any)}
           activeOpacity={0.78}
         >
           <View style={s.learnIconBox}>
@@ -270,7 +278,7 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={s.cardTitle}>Quick Actions</Text>
         </View>
         {QUICK_ACTIONS.map((a, i) => (
-          <TouchableOpacity key={i} style={s.actionRow} onPress={() => navigation.navigate(a.tab)}>
+          <TouchableOpacity key={i} style={s.actionRow} onPress={() => navigation.navigate(a.tab as any)}>
             <Ionicons name={a.icon} size={18} color={colors.textSecondary} />
             <Text style={s.actionText}>{a.label}</Text>
             <Text style={s.actionSub}>{a.sub} →</Text>
@@ -282,11 +290,10 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingTop: 56, paddingBottom: 32 },
 
-  // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   greeting: { fontSize: 13, color: colors.textSecondary },
   name: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },
@@ -296,7 +303,6 @@ const styles = (colors: any) => StyleSheet.create({
   },
   avatarBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
 
-  // Hero
   heroCard: { backgroundColor: colors.primary, borderRadius: 20, padding: 22, marginBottom: 14 },
   heroLabel: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 6 },
   heroAmount: { fontSize: 42, fontWeight: '800', letterSpacing: -1, marginBottom: 4 },
@@ -308,10 +314,7 @@ const styles = (colors: any) => StyleSheet.create({
   heroStatValue: { fontSize: 15, fontWeight: '700', color: '#fff' },
   heroStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
 
-  // Streak Card
-  streakCard: {
-    backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 14,
-  },
+  streakCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, marginBottom: 14 },
   streakTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   streakFlame: { fontSize: 36 },
@@ -320,8 +323,7 @@ const styles = (colors: any) => StyleSheet.create({
   streakMsg: { fontSize: 12, color: colors.textTertiary, marginTop: 2 },
   pointsBadge: {
     backgroundColor: colors.primaryLight, borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 8,
-    alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 8, alignItems: 'center',
   },
   pointsEmoji: { fontSize: 16 },
   pointsValue: { fontSize: 18, fontWeight: '800', color: colors.primary },
@@ -330,12 +332,10 @@ const styles = (colors: any) => StyleSheet.create({
   dotCol: { alignItems: 'center', gap: 4, flex: 1 },
   dot: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.border,
-    borderWidth: 2, borderColor: colors.border,
+    backgroundColor: colors.border, borderWidth: 2, borderColor: colors.border,
   },
   dotActive: {
-    backgroundColor: '#FF6B35',
-    borderColor: '#FF6B35',
+    backgroundColor: '#FF6B35', borderColor: '#FF6B35',
     shadowColor: '#FF6B35', shadowOpacity: 0.4, shadowRadius: 4, elevation: 3,
   },
   dotLabel: { fontSize: 10, color: colors.textTertiary, fontWeight: '600' },
@@ -345,7 +345,6 @@ const styles = (colors: any) => StyleSheet.create({
   levelName: { fontSize: 11, fontWeight: '700', color: colors.primary },
   levelNext: { fontSize: 11, color: colors.textTertiary },
 
-  // Continue Learning
   learnCard: {
     backgroundColor: colors.surface, borderRadius: 14, padding: 14, marginBottom: 14,
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -359,7 +358,6 @@ const styles = (colors: any) => StyleSheet.create({
   learnTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
   learnSummary: { fontSize: 12, color: colors.textSecondary },
 
-  // Cards
   card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 14 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   cardTitle: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },

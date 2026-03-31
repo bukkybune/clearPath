@@ -2,8 +2,10 @@ import React, {
   createContext, useContext, useState, useEffect,
   useRef, useCallback, useMemo,
 } from 'react';
+import { Alert } from 'react-native';
 import { doc, getDoc, setDoc, arrayUnion, increment } from 'firebase/firestore';
 import { db, auth } from '../firebase/firebaseConfig';
+import { POINTS, MILESTONE_IDS } from '../config/points';
 
 interface ProgressContextType {
   completed: string[];
@@ -27,6 +29,13 @@ function dateStr(d: Date) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function showWriteError(action: string) {
+  Alert.alert(
+    'Connection Issue',
+    `Couldn't save your ${action}. Check your connection — your progress may not be recorded.`,
+  );
 }
 
 export function ProgressProvider({ children }: { children: React.ReactNode }) {
@@ -86,11 +95,11 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
         // Streak-7 milestone — evaluated at launch against Firestore data
         let launchPoints = data.points ?? 0;
         const newAwarded = [...awarded];
-        if (newStreak >= 7 && !awarded.includes('streak_7')) {
-          launchPoints += 50;
-          newAwarded.push('streak_7');
-          firestoreUpdate.awardedMilestones = arrayUnion('streak_7');
-          firestoreUpdate.points = increment(50);
+        if (newStreak >= 7 && !awarded.includes(MILESTONE_IDS.STREAK_7)) {
+          launchPoints += POINTS.MILESTONE_STREAK_7;
+          newAwarded.push(MILESTONE_IDS.STREAK_7);
+          firestoreUpdate.awardedMilestones = arrayUnion(MILESTONE_IDS.STREAK_7);
+          firestoreUpdate.points = increment(POINTS.MILESTONE_STREAK_7);
           setAwardedMilestones(newAwarded);
           awardedMilestonesRef.current = newAwarded;
         }
@@ -99,7 +108,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 
         if (Object.keys(firestoreUpdate).length > 0) {
           setDoc(doc(db, 'userProgress', uid), firestoreUpdate, { merge: true })
-            .catch(e => console.error('Failed to update progress on launch:', e));
+            .catch(() => showWriteError('streak'));
         }
 
         setLoading(false);
@@ -121,8 +130,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
           { completedLessons: arrayUnion(lessonId) },
           { merge: true },
         );
-      } catch (e) {
-        console.error('Failed to persist lesson completion:', e);
+      } catch {
+        showWriteError('lesson completion');
       }
     }
   }, [uid]);
@@ -141,8 +150,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
           { readGuides: arrayUnion(guideId) },
           { merge: true },
         );
-      } catch (e) {
-        console.error('Failed to persist guide read:', e);
+      } catch {
+        showWriteError('guide progress');
       }
     }
   }, [uid]);
@@ -156,8 +165,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
           { points: increment(amount) },
           { merge: true },
         );
-      } catch (e) {
-        console.error('Failed to add points:', e);
+      } catch {
+        showWriteError('points');
       }
     }
   }, [uid]);
@@ -179,8 +188,8 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
           { awardedMilestones: arrayUnion(id), points: increment(bonusPoints) },
           { merge: true },
         );
-      } catch (e) {
-        console.error(`Failed to award milestone ${id}:`, e);
+      } catch {
+        showWriteError(`milestone reward`);
       }
     }
   }, [uid]);

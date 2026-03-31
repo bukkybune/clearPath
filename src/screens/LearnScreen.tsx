@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator,
@@ -8,13 +8,15 @@ import { useTheme } from '../context/ThemeContext';
 import { useProgress } from '../context/ProgressContext';
 import { sampleQuestions } from '../utils/quizUtils';
 import { TOPICS, GUIDES, QUIZ_QUESTIONS_PER_ATTEMPT } from '../data/lessons';
+import type { AppColors } from '../theme/colors';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { LearnStackParamList } from '../navigation/types';
 
-// Re-export TOPICS so HomeScreen can still import from this file
-export { TOPICS } from '../data/lessons';
+type Props = NativeStackScreenProps<LearnStackParamList, 'LearnHome'>;
 
-export default function LearnScreen({ navigation }: any) {
+export default function LearnScreen({ navigation }: Props) {
   const { colors } = useTheme();
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
   const { completed, readGuides, loading } = useProgress();
 
   const openLesson = (topic: typeof TOPICS[0], idx: number) => {
@@ -102,7 +104,7 @@ export default function LearnScreen({ navigation }: any) {
                 {topic.title}
               </Text>
               <Text style={[s.topicSummary, isLocked && { color: colors.textTertiary }]}>
-                {isLocked ? `Complete lesson ${idx} to unlock` : topic.summary}
+                {isLocked ? `Complete "${TOPICS[idx - 1].title}" to unlock` : topic.summary}
               </Text>
               {!isLocked && (
                 <View style={s.metaRow}>
@@ -172,7 +174,7 @@ export default function LearnScreen({ navigation }: any) {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 40 },
 

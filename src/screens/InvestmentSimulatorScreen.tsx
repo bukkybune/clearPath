@@ -2,12 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../context/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 const W = Dimensions.get('window').width;
 
 export default function InvestmentSimulatorScreen() {
   const { colors } = useTheme();
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
 
   const [principal, setPrincipal] = useState('1000');
   const [monthly, setMonthly] = useState('100');
@@ -147,7 +148,7 @@ export default function InvestmentSimulatorScreen() {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 40 },
   card: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 14 },

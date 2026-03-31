@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { auth } from './src/firebase/firebaseConfig';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { ProgressProvider } from './src/context/ProgressContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import AppNavigator from './src/navigation/AppNavigator';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import { ActivityIndicator, View } from 'react-native';
 
 function RootNavigator() {
   const [user, setUser] = useState<User | null>(null);
@@ -59,8 +59,10 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <RootNavigator />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <RootNavigator />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
