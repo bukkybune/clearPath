@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, Alert, Animated,
@@ -10,11 +10,15 @@ import { usePoints } from '../hooks/usePoints';
 import { sampleQuestions } from '../utils/quizUtils';
 import type { Question } from '../utils/quizUtils';
 import { TOPICS } from '../data/lessons';
+import { POINTS, MILESTONE_IDS, LESSON_IDS } from '../config/points';
+import type { AppColors } from '../theme/colors';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { LearnStackParamList } from '../navigation/types';
 
 // ── Content renderer ─────────────────────────────────────────────────────────
 // Parses the plain-text lesson content into styled sections (headers, body
 // paragraphs, and bullet lists) so long content is easy to scan.
-function ContentRenderer({ content, colors }: { content: string; colors: any }) {
+function ContentRenderer({ content, colors }: { content: string; colors: AppColors }) {
   const blocks = content.split('\n\n').filter(b => b.trim().length > 0);
   return (
     <View>
@@ -76,9 +80,11 @@ function ContentRenderer({ content, colors }: { content: string; colors: any }) 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function LessonScreen({ route, navigation }: any) {
+type Props = NativeStackScreenProps<LearnStackParamList, 'Lesson'>;
+
+export default function LessonScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
 
   const { completed, readGuides, markComplete, markGuideRead } = useProgress();
   const { addPoints, awardMilestone, awardedMilestones } = usePoints();
@@ -114,7 +120,6 @@ export default function LessonScreen({ route, navigation }: any) {
     : 0;
   const passed = submitted && score >= Math.ceil(currentQuiz.length * 2 / 3);
 
-  // Celebration pop-in when quiz is passed
   useEffect(() => {
     if (passed) {
       Animated.spring(celebAnim, {
@@ -152,12 +157,12 @@ export default function LessonScreen({ route, navigation }: any) {
         ? completed.length
         : completed.length + 1;
       markComplete(topic.id);
-      addPoints(100);
-      if (newCompletedCount === TOPICS.length && !awardedMilestones.includes('all_lessons')) {
-        awardMilestone('all_lessons', 200);
-        showToast('🎓 +200 pts · All lessons complete!');
+      addPoints(POINTS.LESSON_COMPLETE);
+      if (newCompletedCount === TOPICS.length && !awardedMilestones.includes(MILESTONE_IDS.ALL_LESSONS)) {
+        awardMilestone(MILESTONE_IDS.ALL_LESSONS, POINTS.MILESTONE_ALL_LESSONS);
+        showToast(`🎓 +${POINTS.MILESTONE_ALL_LESSONS} pts · All lessons complete!`);
       } else {
-        showToast('+100 pts · Lesson complete!');
+        showToast(`+${POINTS.LESSON_COMPLETE} pts · Lesson complete!`);
       }
     }
   };
@@ -186,7 +191,7 @@ export default function LessonScreen({ route, navigation }: any) {
         </Animated.View>
       )}
 
-      {/* Progress bar — scroll % during reading, answered % during quiz, full when submitted */}
+      {/* Progress bar */}
       <View style={s.progressBarBg}>
         <View style={[s.progressBarFill, {
           width: submitted
@@ -206,7 +211,7 @@ export default function LessonScreen({ route, navigation }: any) {
         {/* Header */}
         <View style={s.header}>
           <View style={s.iconBox}>
-            <Ionicons name={topic.icon} size={28} color={colors.primary} />
+            <Ionicons name={topic.icon as any} size={28} color={colors.primary} />
           </View>
           <Text style={s.title}>{topic.title}</Text>
           <View style={s.metaRow}>
@@ -255,8 +260,8 @@ export default function LessonScreen({ route, navigation }: any) {
                 const alreadyRead = readGuides.includes(topic.id);
                 markGuideRead(topic.id);
                 if (!alreadyRead) {
-                  addPoints(25);
-                  showToast('+25 pts · Guide read!');
+                  addPoints(POINTS.GUIDE_READ);
+                  showToast(`+${POINTS.GUIDE_READ} pts · Guide read!`);
                   navTimerRef.current = setTimeout(() => navigation.goBack(), 1800);
                 } else {
                   navigation.goBack();
@@ -343,7 +348,8 @@ export default function LessonScreen({ route, navigation }: any) {
                     : 'Good try! Review the lesson and try again with fresh questions.'}
                 </Text>
 
-                {passed && topic.id === '3' && (
+                {/* Navigate to Investment Simulator after completing the portfolio lesson */}
+                {passed && topic.id === LESSON_IDS.COMPOUND_INTEREST && (
                   <TouchableOpacity
                     style={s.simBtn}
                     onPress={() => navigation.getParent()?.navigate('Tools', { screen: 'InvestmentSimulator' })}
@@ -370,7 +376,7 @@ export default function LessonScreen({ route, navigation }: any) {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 40 },
 

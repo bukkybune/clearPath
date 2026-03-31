@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, TextInput, Alert, Switch
@@ -9,24 +9,30 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/firebaseConfig';
 import { useTheme } from '../context/ThemeContext';
 import { usePoints } from '../hooks/usePoints';
+import { useAuth } from '../hooks/useAuth';
 import { getLevelInfo } from '../utils/levelUtils';
+import type { AppColors } from '../theme/colors';
+import Constants from 'expo-constants';
 
 export default function ProfileScreen() {
   const { colors, themeMode, setThemeMode, isDark } = useTheme();
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
   const { points, streak } = usePoints();
+  const { user } = useAuth();
   const levelInfo = getLevelInfo(points);
-  const user = auth.currentUser;
+
   const [name, setName] = useState(user?.displayName || '');
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [joinDate, setJoinDate] = useState('');
 
+  // user.uid is the correct dep — re-fetch if the signed-in account changes.
   useEffect(() => {
+    if (!user?.uid) return;
+    const uid = user.uid;
     const fetchUser = async () => {
-      if (!user?.uid) return;
       try {
-        const snap = await getDoc(doc(db, 'users', user.uid));
+        const snap = await getDoc(doc(db, 'users', uid));
         if (snap.exists()) {
           const data = snap.data();
           if (data.createdAt) {
@@ -35,21 +41,28 @@ export default function ProfileScreen() {
           }
           if (data.name) setName(data.name);
         }
-      } catch (e) { console.error(e); }
+      } catch {
+        // Join date is cosmetic — fail silently but log for debugging.
+        console.error('Could not fetch user profile');
+      }
     };
     fetchUser();
-  }, []);
+  }, [user?.uid]);
 
   const saveName = async () => {
     if (!name.trim()) { Alert.alert('Error', 'Name cannot be empty'); return; }
+    if (!user) { Alert.alert('Error', 'You are not signed in'); return; }
     setSaving(true);
     try {
-      await updateProfile(user!, { displayName: name });
-      await updateDoc(doc(db, 'users', user!.uid), { name });
+      await updateProfile(user, { displayName: name.trim() });
+      await updateDoc(doc(db, 'users', user.uid), { name: name.trim() });
       setEditing(false);
       Alert.alert('Success', 'Name updated successfully!');
-    } catch (e) { Alert.alert('Error', 'Could not update name'); }
-    finally { setSaving(false); }
+    } catch {
+      Alert.alert('Error', 'Could not update name');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -60,6 +73,7 @@ export default function ProfileScreen() {
   };
 
   const avatar = (name || user?.email || 'U')[0].toUpperCase();
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -187,7 +201,7 @@ export default function ProfileScreen() {
               <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
               <Text style={s.rowLabel}>Version</Text>
             </View>
-            <Text style={s.rowValue}>1.0.0</Text>
+            <Text style={s.rowValue}>{appVersion}</Text>
           </View>
           <View style={[s.row, s.rowBorder]}>
             <View style={s.rowLeft}>
@@ -209,7 +223,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 40 },
   avatarSection: { alignItems: 'center', marginBottom: 28 },

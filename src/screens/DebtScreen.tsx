@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Dimensions
@@ -6,6 +6,7 @@ import {
 import { LineChart } from 'react-native-chart-kit';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
+import type { AppColors } from '../theme/colors';
 
 const W = Dimensions.get('window').width;
 
@@ -17,33 +18,61 @@ interface PayoffResult {
   totalPaid: number;
   chartLabels: string[];
   chartData: number[];
+  hitCeiling: boolean;
 }
+
+// Tips moved outside component — never changes, no need to reallocate on every render.
+const TIPS: Record<SimType, string[]> = {
+  student: [
+    'Even $50 extra/month can save thousands in interest.',
+    'Look into income-driven repayment plans if payments are too high.',
+    'Public Service Loan Forgiveness may apply if you work in public service.',
+  ],
+  credit: [
+    'Always pay more than the minimum to avoid debt traps.',
+    'Consider the avalanche method: pay highest interest rate first.',
+    'A balance transfer to a lower rate card could save money.',
+  ],
+};
+
+const MAX_MONTHS = 600;
 
 function calcPayoff(principal: number, annualRate: number, monthlyPayment: number): PayoffResult {
   let balance = principal;
   const monthlyRate = annualRate / 100 / 12;
   let months = 0;
   let totalInterest = 0;
+  let amountPaidSoFar = 0;
   const chartData: number[] = [balance];
   const chartLabels: string[] = ['0'];
 
-  while (balance > 0 && months < 600) {
+  while (balance > 0 && months < MAX_MONTHS) {
     const interest = balance * monthlyRate;
     totalInterest += interest;
     balance = balance + interest - monthlyPayment;
     if (balance < 0) balance = 0;
+    amountPaidSoFar += monthlyPayment;
     months++;
     if (months % 12 === 0 || balance === 0) {
       chartLabels.push(`${months}mo`);
       chartData.push(Math.round(balance));
     }
   }
-  return { months, totalInterest, totalPaid: principal + totalInterest, chartLabels, chartData };
+
+  const hitCeiling = months >= MAX_MONTHS && balance > 0;
+  return {
+    months,
+    totalInterest,
+    totalPaid: hitCeiling ? amountPaidSoFar : principal + totalInterest,
+    chartLabels,
+    chartData,
+    hitCeiling,
+  };
 }
 
 export default function DebtScreen() {
   const { colors } = useTheme();
-  const s = styles(colors);
+  const s = useMemo(() => styles(colors), [colors]);
   const [simType, setSimType] = useState<SimType>('student');
   const [principal, setPrincipal] = useState('');
   const [rate, setRate] = useState('');
@@ -52,13 +81,29 @@ export default function DebtScreen() {
   const [error, setError] = useState('');
 
   const simulate = () => {
-    const p = Number(principal), r = Number(rate), m = Number(payment);
-    if (!p || !r || !m) { setError('Please fill in all fields'); return; }
+    const p = Number(principal);
+    const r = Number(rate);
+    const m = Number(payment);
+
+    if (!principal || !rate || !payment) {
+      setError('Please fill in all fields'); return;
+    }
+    if (isNaN(p) || p <= 0) {
+      setError('Loan balance must be greater than zero'); return;
+    }
+    if (isNaN(r) || r < 0) {
+      setError('Interest rate must be non-negative'); return;
+    }
+    if (isNaN(m) || m <= 0) {
+      setError('Monthly payment must be greater than zero'); return;
+    }
+
     const minPayment = p * (r / 100 / 12);
     if (m <= minPayment) {
       setError(`Monthly payment must be greater than $${minPayment.toFixed(2)} to cover interest`);
       return;
     }
+
     setError('');
     setResult(calcPayoff(p, r, m));
   };
@@ -72,19 +117,6 @@ export default function DebtScreen() {
 
   const years = result ? Math.floor(result.months / 12) : 0;
   const months = result ? result.months % 12 : 0;
-
-  const TIPS = {
-    student: [
-      'Even $50 extra/month can save thousands in interest.',
-      'Look into income-driven repayment plans if payments are too high.',
-      'Public Service Loan Forgiveness may apply if you work in public service.',
-    ],
-    credit: [
-      'Always pay more than the minimum to avoid debt traps.',
-      'Consider the avalanche method: pay highest interest rate first.',
-      'A balance transfer to a lower rate card could save money.',
-    ],
-  };
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content}>
@@ -145,6 +177,17 @@ export default function DebtScreen() {
       {/* Results */}
       {result && (
         <>
+          {/* Warning banner when the simulation hit the 50-year ceiling */}
+          {result.hitCeiling && (
+            <View style={s.warningBox}>
+              <Ionicons name="warning-outline" size={16} color={colors.warning} />
+              <Text style={s.warningText}>
+                At this payment rate the loan would not be paid off within 50 years.
+                Try increasing your monthly payment.
+              </Text>
+            </View>
+          )}
+
           <View style={s.card}>
             <View style={s.cardHeader}>
               <Ionicons name="bar-chart-outline" size={18} color={colors.primary} />
@@ -153,7 +196,9 @@ export default function DebtScreen() {
             <View style={s.resultsGrid}>
               <View style={s.resultItem}>
                 <Text style={s.resultLabel}>Payoff Time</Text>
-                <Text style={[s.resultValue, { color: colors.primary }]}>{years}y {months}mo</Text>
+                <Text style={[s.resultValue, { color: result.hitCeiling ? colors.warning : colors.primary }]}>
+                  {result.hitCeiling ? '50+ yrs' : `${years}y ${months}mo`}
+                </Text>
               </View>
               <View style={s.resultDivider} />
               <View style={s.resultItem}>
@@ -209,7 +254,7 @@ export default function DebtScreen() {
   );
 }
 
-const styles = (colors: any) => StyleSheet.create({
+const styles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20 },
   toggleRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
@@ -224,6 +269,8 @@ const styles = (colors: any) => StyleSheet.create({
   input: { backgroundColor: colors.surfaceSecondary, color: colors.textPrimary, borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 14 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dangerLight, padding: 10, borderRadius: 8, marginBottom: 10 },
   errorText: { color: colors.danger, fontSize: 13, flex: 1 },
+  warningBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: colors.warningLight, padding: 12, borderRadius: 10, marginBottom: 14, borderWidth: 1, borderColor: colors.warning },
+  warningText: { color: colors.warning, fontSize: 13, flex: 1, lineHeight: 20 },
   calcBtn: { backgroundColor: colors.primary, borderRadius: 8, padding: 13, alignItems: 'center' },
   calcBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   resultsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
