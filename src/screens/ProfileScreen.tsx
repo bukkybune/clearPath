@@ -28,9 +28,10 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (!user?.uid) return;
+    let cancelled = false;
     const uid = user.uid;
     getDoc(doc(db, 'users', uid)).then(snap => {
-      if (!snap.exists()) return;
+      if (cancelled || !snap.exists()) return;
       const data = snap.data();
       if (data.createdAt) {
         const d = new Date(data.createdAt);
@@ -38,11 +39,16 @@ export default function ProfileScreen() {
       }
       if (data.name) setName(data.name);
     }).catch(() => {});
+    return () => { cancelled = true; };
   }, [user?.uid]);
 
   const saveName = async () => {
     if (!name.trim()) { Alert.alert('Error', 'Name cannot be empty'); return; }
-    if (!user) return;
+    if (!user) {
+      Alert.alert('Session expired', 'Please sign in again.');
+      setEditing(false);
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile(user, { displayName: name.trim() });
@@ -59,7 +65,17 @@ export default function ProfileScreen() {
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut(auth) },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut(auth);
+          } catch {
+            Alert.alert('Error', 'Could not sign out. Please try again.');
+          }
+        },
+      },
     ]);
   };
 
@@ -142,6 +158,8 @@ export default function ProfileScreen() {
             onValueChange={val => setThemeMode(val ? 'dark' : 'light')}
             trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor="#fff"
+            accessibilityLabel="Dark mode"
+            accessibilityRole="switch"
           />
         </View>
         <View style={[s.row, s.rowBorder]}>
@@ -154,6 +172,8 @@ export default function ProfileScreen() {
             onValueChange={val => setThemeMode(val ? 'system' : isDark ? 'dark' : 'light')}
             trackColor={{ false: colors.border, true: colors.primary }}
             thumbColor="#fff"
+            accessibilityLabel="Use system theme"
+            accessibilityRole="switch"
           />
         </View>
       </View>

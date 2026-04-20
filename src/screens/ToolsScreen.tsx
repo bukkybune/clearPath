@@ -116,9 +116,9 @@ const styles = (colors: AppColors) => StyleSheet.create({
   },
   iconBox: { width: 54, height: 54, borderRadius: 14, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
   cardMeta: { flex: 1 },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  tag: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
+  tag: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, flexShrink: 0 },
   tagText: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
   cardDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
 

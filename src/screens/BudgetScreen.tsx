@@ -63,7 +63,11 @@ export default function BudgetScreen() {
   const budgetBonusMonthRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setTransactions([]);
+      setTransactionsLoaded(false);
+      return;
+    }
     const q = query(collection(db, 'transactions'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
       setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction)));
@@ -72,7 +76,11 @@ export default function BudgetScreen() {
   }, [uid]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setOldExpenses([]);
+      setOldExpensesLoaded(false);
+      return;
+    }
     const q = query(collection(db, 'expenses'), where('uid', '==', uid));
     return onSnapshot(q, snap => {
       setOldExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() as any, type: 'expense' as const })));
@@ -105,6 +113,7 @@ export default function BudgetScreen() {
 
   // Award +50 pts once per month when expenses stay under the monthly budget.
   // Depends only on stable values — avoids a Firestore read on every transaction change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!uid || monthlyBudget <= 0 || !transactionsLoaded || !oldExpensesLoaded) return;
     const thisMonth = currentYM();

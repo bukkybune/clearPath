@@ -4,8 +4,9 @@ import { useTheme } from '../context/ThemeContext';
 import ToolsScreen from '../screens/ToolsScreen';
 import InvestmentSimulatorScreen from '../screens/InvestmentSimulatorScreen';
 import DebtScreen from '../screens/DebtScreen';
+import type { ToolsStackParamList } from './types';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<ToolsStackParamList>();
 
 export default function ToolsNavigator() {
   const { colors } = useTheme();
