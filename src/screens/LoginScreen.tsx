@@ -5,13 +5,11 @@ import {
 } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase/firebaseConfig';
-import { useGoogleAuth } from '../firebase/googleAuth';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { request, handleGoogleSignIn } = useGoogleAuth();
 
   const handleLogin = async () => {
     if (!email || !password) { Alert.alert('Error', 'Please fill in all fields'); return; }
@@ -43,16 +41,6 @@ export default function LoginScreen({ navigation }: any) {
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Log In</Text>}
       </TouchableOpacity>
 
-      <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.divider} />
-      </View>
-
-      <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleSignIn} disabled={!request}>
-        <Text style={styles.googleBtnText}>🔵  Continue with Google</Text>
-      </TouchableOpacity>
-
       <TouchableOpacity onPress={() => navigation.navigate('Register')}>
         <Text style={styles.link}>Don't have an account? <Text style={styles.linkBold}>Sign Up</Text></Text>
       </TouchableOpacity>
@@ -70,14 +58,6 @@ const styles = StyleSheet.create({
   },
   btn: { backgroundColor: '#38bdf8', borderRadius: 10, padding: 15, alignItems: 'center', marginBottom: 16 },
   btnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  divider: { flex: 1, height: 1, backgroundColor: '#334155' },
-  dividerText: { color: '#94a3b8', marginHorizontal: 10, fontSize: 13 },
-  googleBtn: {
-    backgroundColor: '#1e293b', borderRadius: 10, padding: 15,
-    alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#334155'
-  },
-  googleBtnText: { color: '#f1f5f9', fontWeight: 'bold', fontSize: 15 },
   link: { color: '#94a3b8', textAlign: 'center', fontSize: 14 },
   linkBold: { color: '#38bdf8', fontWeight: 'bold' },
 });

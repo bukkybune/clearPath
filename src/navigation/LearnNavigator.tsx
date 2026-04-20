@@ -3,8 +3,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 import LearnScreen from '../screens/LearnScreen';
 import LessonScreen from '../screens/LessonScreen';
+import type { LearnStackParamList } from './types';
 
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<LearnStackParamList>();
 
 export default function LearnNavigator() {
   const { colors } = useTheme();

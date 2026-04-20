@@ -461,31 +461,47 @@ export default function BudgetScreen() {
       )}
 
       {/* Transaction List */}
-      {displayList.length > 0 && (
+      {(transactionsLoaded && oldExpensesLoaded) && (
         <View style={s.card}>
           <View style={s.cardHeader}>
             <Ionicons name="list-outline" size={18} color={colors.primary} />
             <Text style={s.cardTitle}>{activeTab === 'expenses' ? 'All Expenses' : 'All Income'}</Text>
           </View>
-          {displayList.map(t => (
-            <View key={t.id} style={s.txRow}>
-              <View style={s.txLeft}>
-                <View style={[s.txDot, { backgroundColor: colors.chart[displayCategories.indexOf(t.category) % colors.chart.length] || colors.primary }]} />
-                <View>
-                  <Text style={s.txCat}>{t.category}</Text>
-                  {t.description ? <Text style={s.txDesc}>{t.description}</Text> : null}
+          {displayList.length === 0 ? (
+            <View style={s.emptyState}>
+              <Ionicons
+                name={activeTab === 'expenses' ? 'receipt-outline' : 'cash-outline'}
+                size={32}
+                color={colors.textTertiary}
+              />
+              <Text style={s.emptyTitle}>
+                No {activeTab === 'expenses' ? 'expenses' : 'income'} yet
+              </Text>
+              <Text style={s.emptyText}>
+                Tap "Add {activeTab === 'expenses' ? 'Expense' : 'Income'}" above to log your first entry for {getMonthLabel(selectedMonth)}.
+              </Text>
+            </View>
+          ) : (
+            displayList.map(t => (
+              <View key={t.id} style={s.txRow}>
+                <View style={s.txLeft}>
+                  <View style={[s.txDot, { backgroundColor: colors.chart[displayCategories.indexOf(t.category) % colors.chart.length] || colors.primary }]} />
+                  <View>
+                    <Text style={s.txCat}>{t.category}</Text>
+                    {t.description ? <Text style={s.txDesc}>{t.description}</Text> : null}
+                  </View>
+                </View>
+                <View style={s.txRight}>
+                  <Text style={[s.txAmt, { color: activeTab === 'income' ? colors.success : colors.danger }]}>
+                    {activeTab === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
+                  </Text>
+                  <TouchableOpacity onPress={() => deleteTransaction(t.id, oldExpenses.some(e => e.id === t.id))} style={s.deleteBtn}>
+                    <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <View style={s.txRight}>
-                <Text style={[s.txAmt, { color: activeTab === 'income' ? colors.success : colors.danger }]}>
-                  {activeTab === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
-                </Text>
-                <TouchableOpacity onPress={() => deleteTransaction(t.id, oldExpenses.some(e => e.id === t.id))} style={s.deleteBtn}>
-                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       )}
     </ScrollView>
@@ -547,4 +563,7 @@ const styles = (colors: AppColors) => StyleSheet.create({
   txRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   txAmt: { fontSize: 14, fontWeight: '600' },
   deleteBtn: { padding: 4 },
+  emptyState: { alignItems: 'center', paddingVertical: 24, gap: 8 },
+  emptyTitle: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  emptyText: { fontSize: 13, color: colors.textTertiary, textAlign: 'center', lineHeight: 20 },
 });
