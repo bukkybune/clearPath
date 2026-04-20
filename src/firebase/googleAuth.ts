@@ -10,6 +10,10 @@ WebBrowser.maybeCompleteAuthSession();
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
 const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
 
+if (__DEV__ && !WEB_CLIENT_ID) {
+  console.warn('[googleAuth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID is not set — Google Sign-In will not work.');
+}
+
 export function useGoogleAuth() {
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: WEB_CLIENT_ID,
