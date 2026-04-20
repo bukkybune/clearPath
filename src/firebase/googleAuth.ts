@@ -2,16 +2,18 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { Alert } from 'react-native';
 import { auth, db } from './firebaseConfig';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const WEB_CLIENT_ID = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+const ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '';
 
 export function useGoogleAuth() {
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: WEB_CLIENT_ID,
-    clientId: WEB_CLIENT_ID,
+    androidClientId: ANDROID_CLIENT_ID || undefined,
   });
 
   const handleGoogleSignIn = async () => {
@@ -34,7 +36,7 @@ export function useGoogleAuth() {
         });
       }
     } catch (err: any) {
-      console.error('Google Sign-In error:', err.message);
+      Alert.alert('Sign-In Failed', err.message || 'Unable to sign in with Google. Please try again.');
     }
   };
 

@@ -19,7 +19,7 @@ export default function ToolsNavigator() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="ToolsHub" component={ToolsScreen} options={{ title: 'Tools' }} />
+      <Stack.Screen name="ToolsHub" component={ToolsScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="InvestmentSimulator"
         component={InvestmentSimulatorScreen}

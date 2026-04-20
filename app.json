@@ -2,6 +2,7 @@
   "expo": {
     "name": "ClearPath",
     "slug": "ClearPath",
+    "owner": "bukkybune",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,6 +18,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.clearpath.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -29,6 +31,17 @@
     },
     "plugins": [
       "expo-web-browser"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "34a24a9d-ceaf-4373-8949-f11492b887e1"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/34a24a9d-ceaf-4373-8949-f11492b887e1"
+    }
   }
 }
